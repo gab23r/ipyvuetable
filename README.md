@@ -40,3 +40,16 @@ EditingTable(
 ```
 ![EditingTable](./static/demoEditingTable.png)
 
+## Installation
+
+Install the latest ipyvuetable version with:
+
+```sh
+pip install ipyvuetable
+```
+
+Benefit from keyboard events with:
+
+```sh
+pip install ipyvuetable[ipyevents]
+```
