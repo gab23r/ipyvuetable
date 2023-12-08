@@ -1,0 +1,28 @@
+.ipyvuetable td {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.extra_dense .v-icon {
+    font-size: 18px ! important;
+}
+
+.extra_dense .v-badge__badge {
+    font-size: 10px;
+    height: 16px;
+    min-width: 16px;
+}
+
+.v-data-table.extra_dense td {
+    font-size: .795rem !important;
+    height: 20px !important
+}
+
+ /* https://github.com/microsoft/vscode-jupyter/issues/7161 */
+.cell-output-ipywidget-background {
+    background-color: transparent !important;
+ }
+ .jp-OutputArea-output {
+    background-color: transparent;
+ }  
