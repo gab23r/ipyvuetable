@@ -140,6 +140,7 @@ class EditingTable(Table):
                     col,
                     column_repr,
                     single_select=single_select,
+                    item_key = f'{col}__key',
                     columns_to_hide=[f"{col}__key"],
                 )
             else:
@@ -271,7 +272,7 @@ class VirtualAutocomplete(v.Content):
     @property
     def v_model(self):
         v_model: list[Any] | None = [
-            item[self.table_select.row_nr] for item in self.table_select.v_model
+            item[self.table_select.item_key] for item in self.table_select.v_model
         ]
         if self.table_select.single_select:
             if v_model:
@@ -284,7 +285,7 @@ class VirtualAutocomplete(v.Content):
     def v_model(self, value):
         self.table_select.v_model = (
             self.table_select.df.filter(pl.col(self.name + "__key").is_in(value))
-            .select(self.table_select.row_nr)
+            .select(self.table_select.item_key)
             .collect()
             .to_dicts()
         )
