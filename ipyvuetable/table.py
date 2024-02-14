@@ -342,7 +342,6 @@ class Table(DataTableEnhanced):
                 {"name": "badge", "children": [str(self.nb_selected)]}
             ]
             self.badge.dot = not bool(self.nb_selected)
-            
         self.unselect.disabled = self.nb_selected == 0
 
         # reset filter_on_selected widget
@@ -419,10 +418,11 @@ class Table(DataTableEnhanced):
         ]
         for c, df_repr in self.columns_repr.items():
             if c in self.schema:
-                df_paginated = df_paginated.join(df_repr, on=c, how="left")
-                fill_null_repr_exprs.append(
-                    pl.col(c + "__repr").fill_null(pl.col(c).cast(pl.Utf8)).alias(c)
-                )
+                if not isinstance(self.schema[c], pl.List):
+                    df_paginated = df_paginated.join(df_repr, on=c, how="left")
+                    fill_null_repr_exprs.append(
+                        pl.col(c + "__repr").fill_null(pl.col(c).cast(pl.Utf8)).alias(c)
+                    )
 
         df_paginated = df_paginated.with_columns(fill_null_repr_exprs).select(
             self.row_nr, *self.schema
