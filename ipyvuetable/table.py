@@ -341,6 +341,8 @@ class Table(DataTableEnhanced):
             self.badge.v_slots = [
                 {"name": "badge", "children": [str(self.nb_selected)]}
             ]
+            self.badge.dot = not bool(self.nb_selected)
+            
         self.unselect.disabled = self.nb_selected == 0
 
         # reset filter_on_selected widget
