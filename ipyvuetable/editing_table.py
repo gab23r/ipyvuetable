@@ -15,8 +15,8 @@ class EditingTable(Table):
         t.Dict({}), default_value=[{}], allow_none=True
     ).tag(sync=True) # type: ignore
 
-    def __init__(self, hide_dialog_keys: list[str] = [], *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
+    def __init__(self, df: pl.LazyFrame = pl.LazyFrame(), hide_dialog_keys: list[str] = [], *args: Any, **kwargs: Any):
+        super().__init__(df, *args, **kwargs)
 
         self.save_btn = v.Btn(children=["Save"], color="blue darken-1")
 
@@ -42,11 +42,11 @@ class EditingTable(Table):
 
     def _on_click_edit_item_btn(self, widget, event, data):
         self.dialog_values = {}
-        for col, series in self.df_selected.collect().to_dict().items():
+        for col, values in self.df_selected.collect().to_dict(as_series=False).items():
             if col == self.row_nr:
-                self.dialog_values[col] = series.to_list()
-            elif series.len() == 1 or series.n_unique() == 1 and series[0] is not None:
-                self.dialog_values[col] = series[0]
+                self.dialog_values[col] = values
+            elif len(values) == 1 or len(set(str(v) for v in values)) == 1 and values[0] is not None:
+                self.dialog_values[col] = values[0]
         self._show_dialog()
 
     def _on_click_new_item_btn(self, widget, event, data):
@@ -71,19 +71,22 @@ class EditingTable(Table):
             for c, widget in self.dialog_widgets.items()
             if indexes is None  # In case of click_new
             or len(indexes) == 1  # In case of click_edit one element
-            or len(indexes) > 1  # In case of click_edit multiple elements
-            and widget.v_model is not None
+            or len(indexes) > 1 and widget.v_model is not None # In case of click_edit multiple elements
         }
-
         for c, value in new_item.items():
             dtype = self.schema[c]
             if value is not None:
-                if dtype in [pl.Float64, pl.Float32]:  # type: ignore
+                if dtype in pl.FLOAT_DTYPES:
                     new_item[c] = float(value)
                 elif dtype in pl.NUMERIC_DTYPES:
                     new_item[c] = int(value)
                 elif isinstance(dtype, pl.List):
-                    new_item[c] = [int(i) for i in value]
+                    if dtype.inner in pl.NUMERIC_DTYPES:
+                        new_item[c] = [int(i) for i in value]
+                    elif dtype.inner in pl.FLOAT_DTYPES:
+                        new_item[c] = [float(i) for i in value]
+                    else:
+                        new_item[c] = value
                 elif isinstance(dtype, pl.Datetime):
                     try:
                         date_time = datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M")
@@ -95,22 +98,29 @@ class EditingTable(Table):
             k: v for k, v in self.get_default_new_item().items() if k in new_item
         }
         new_item_df = (
-            pl.LazyFrame(new_item)
+            pl.LazyFrame([new_item])
             .with_columns(**default_new_item)
             .cast({k: v for k, v in self.schema.items() if k in new_item})
             .join(
-                pl.LazyFrame(indexes or [None], schema={self.row_nr: pl.UInt32}),
+                pl.LazyFrame(indexes or [None], schema={self.row_nr: pl.UInt32})
+                .join(self.df_selected.select({self.item_key, self.row_nr}), how = 'left', on = self.row_nr),
                 how="cross",
             )
-            .collect()
-            .lazy()
+            .pipe(lambda d: d.select([c for c in self.df.columns if c in d.columns]))
         )
         self.new_items = new_item_df.collect().to_dicts()
 
+        new_item_df_updated = (
+            new_item_df.update(
+                pl.LazyFrame(self.new_items)
+                .cast({k: v for k, v in self.schema.items() if k in new_item})
+            )
+        )
+
         if indexes is not None:
-            self.df = self.df.update(new_item_df, on=self.row_nr, include_nulls=True)
+            self.df = self.df.update(new_item_df_updated, on=self.row_nr, include_nulls=True)
         else:
-            self.df = pl.concat([self.df, new_item_df])
+            self.df = pl.concat([self.df, new_item_df_updated])
 
     def _get_dialog_widgets(self) -> dict[str, v.VuetifyWidget]:
         dialog_widgets = {}

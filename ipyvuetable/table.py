@@ -92,6 +92,7 @@ class Table(DataTableEnhanced):
     def __init__(
         self,
         df: pl.LazyFrame = pl.LazyFrame(),
+        *,
         title: str | None = None,
         item_key: str | None = None,
         columns_repr: dict[str, pl.LazyFrame] = {},
@@ -294,8 +295,6 @@ class Table(DataTableEnhanced):
 
     @property
     def df_selected(self) -> pl.LazyFrame:
-        # polars do not manage .is_in([None,...])
-        # https://github.com/pola-rs/polars/issues/12794
         if any(row[self.item_key] is None for row in self.v_model):
             filter_expr = (
                 pl.col(self.item_key).is_in(
