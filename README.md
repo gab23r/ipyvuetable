@@ -5,7 +5,7 @@ Fast and customizable table widget for the Jupyter ecosystem build on [ipyvuetif
 ipyvuetable can sort, filter, edit large `polars.LazyFrame` in a paginated way. 
 You can easily customize you table widget, add actions, hide columns, add special visualisation for some columns and benefit from all the ipyvuetify customization
 
-```
+```python
 from ipyvuetable import EditingTable, Table
 import polars as pl
 df = (
