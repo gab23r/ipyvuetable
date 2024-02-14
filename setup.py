@@ -5,9 +5,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ipyvuetable",
-    version="0.2.3",
+    version="0.2.4",
     author="Gabriel Robin",
-    description="Table widget for the Jupyter Notebook and JupyterLab",
+    description="Table widget for Jupyter Notebook and JupyterLab",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.airbus.corp/Airbus/ipyvuetable",
