@@ -8,9 +8,13 @@ from ipyvuetify import VuetifyWidget
 
 import ipyvuetable.utils as utils
 from ipyvuetable.table import Table
+from ipyvuetable.widgets import FileInput, VirtualAutocomplete
 
+
+DialogWidget = VuetifyWidget | FileInput | VirtualAutocomplete
 
 class EditingTable(Table):
+    default_dialog_values: dict[str, Any] = {}
     new_items: list[dict[str, Any]] = t.List(
         t.Dict({}), default_value=[{}], allow_none=True
     ).tag(sync=True) # type: ignore
@@ -21,7 +25,7 @@ class EditingTable(Table):
         self.save_btn = v.Btn(children=["Save"], color="blue darken-1")
 
         # instantiate the dialog widgets on demand
-        self.dialog_widgets: dict[str, VuetifyWidget] = {}
+        self.dialog_widgets: dict[str, DialogWidget] = {}
         self.dialog_values: dict[str, Any] = {}
         self.hide_dialog_keys = hide_dialog_keys
         self.dialog_widgets_container = v.Col()
@@ -50,7 +54,7 @@ class EditingTable(Table):
         self._show_dialog()
 
     def _on_click_new_item_btn(self, widget, event, data):
-        self.dialog_values = {}
+        self.dialog_values = self.default_dialog_values
         self._show_dialog()
 
     def _on_click_duplicate_item_btn(self, widget, event, data):
@@ -66,7 +70,7 @@ class EditingTable(Table):
         self.dialog.v_model = False
 
         indexes: list[int] | None = self.dialog_values.get(self.row_nr)
-        new_item = {
+        new_item: dict[str, Any] = {
             c: widget.v_model
             for c, widget in self.dialog_widgets.items()
             if indexes is None  # In case of click_new
@@ -108,12 +112,14 @@ class EditingTable(Table):
             )
             .pipe(lambda d: d.select([c for c in self.df.columns if c in d.columns]))
         )
+        self.previous_items = self.df_selected.collect().rows_by_key(self.item_key, unique = True, named = True)
         self.new_items = new_item_df.collect().to_dicts()
 
         new_item_df_updated = (
             new_item_df.update(
                 pl.LazyFrame(self.new_items)
                 .cast({k: v for k, v in self.schema.items() if k in new_item})
+                .cast({self.row_nr: pl.UInt32})
             )
         )
 
@@ -122,7 +128,7 @@ class EditingTable(Table):
         else:
             self.df = pl.concat([self.df, new_item_df_updated])
 
-    def _get_dialog_widgets(self) -> dict[str, v.VuetifyWidget]:
+    def _get_dialog_widgets(self) -> dict[str, DialogWidget]:
         dialog_widgets = {}
         for col, dtype in self.schema.items():
             column_repr = self.columns_repr.get(col)
@@ -143,6 +149,8 @@ class EditingTable(Table):
                     item_key = f'{col}__key',
                     columns_to_hide=[f"{col}__key"],
                 )
+            elif col.lower().endswith('_file'):
+                widget = FileInput(name = col)
             else:
                 if isinstance(dtype, pl.List):
                     widget = v.Combobox(
@@ -162,12 +170,12 @@ class EditingTable(Table):
 
             dialog_widgets[col] = widget
 
-            if col in self.hide_dialog_keys:
+            if col in self.hide_dialog_keys and not isinstance(widget, FileInput): # hide is not available for FileInput
                 widget.hide()
 
         return dialog_widgets
 
-    def get_default_new_item(self):
+    def get_default_new_item(self) -> dict[str, Any]:
         return {}
 
     def _show_dialog(self):
@@ -229,76 +237,3 @@ class EditingTable(Table):
         self.actions["edit"]["obj"].disabled = self.nb_selected < 1
         self.actions["duplicate"]["obj"].disabled = self.nb_selected != 1
 
-
-class VirtualAutocomplete(v.Content):
-    """
-    Class that creates a custom widget made to select a value out of several possibilities
-    It combines a v.TextField with a Table in a Menu display fashion
-    Clicking on the text field opens a table, an item can be selected and will be reported in a
-    readable way in the text field. The widget is able to communicate the index of the selected value
-    for its later usage
-    """
-
-    def __init__(self, name, df, **kwargs):
-        self.name = name
-        self.textfield = v.TextField(
-            v_model=None,
-            placeholder="Please select a value",
-            label=self.name,
-            readonly=True,
-            v_on="menus.on",
-            v_bind="menus.attrs",
-        )
-        kwargs["show_select"] = True
-        kwargs["show_actions"] = False
-        self.table_select = Table(df=df, **kwargs)
-        self.menu = v.Menu(
-            close_on_content_click=False,
-            transition="scale-transition",
-            v_slots=[
-                {
-                    "name": "activator",
-                    "variable": "menus",
-                    "children": self.textfield,
-                }
-            ],
-            children=[v.Card(children=[self.table_select])],
-        )
-
-        super().__init__(class_="pa-0", children=[self.menu])
-
-        self.menu.on_event("input", self._on_menu_toggled)
-
-    @property
-    def v_model(self):
-        v_model: list[Any] | None = [
-            item[self.table_select.item_key] for item in self.table_select.v_model
-        ]
-        if self.table_select.single_select:
-            if v_model:
-                v_model = v_model[0]
-            else:
-                v_model = None
-        return v_model
-
-    @v_model.setter
-    def v_model(self, value):
-        self.table_select.v_model = (
-            self.table_select.df.filter(pl.col(self.name + "__key").is_in(value))
-            .select(self.table_select.item_key)
-            .collect()
-            .to_dicts()
-        )
-        self._update_text_field()
-
-    def _on_menu_toggled(self, widget, event, data):
-        if not data:  # Menu is close
-            self._update_text_field()
-
-    def _update_text_field(self):
-        values = (
-            self.table_select.df_selected.select(self.name)
-            .collect()[self.name]
-            .to_list()
-        )
-        self.textfield.v_model = ", ".join(values) if values else None

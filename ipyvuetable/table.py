@@ -32,6 +32,7 @@ class DataTableEnhanced(v.DataTable):
         self.items_per_page = kwargs.pop("items_per_page", 10)
 
         self.on_event("update:options", self._on_change_option_data_table)
+        self.observe(self._on_change_items, 'items')
 
     def _update_items(self):
         # In case of paginated Table _update_items need to be update and _on_change_items will be triggered automatically
@@ -61,7 +62,6 @@ class DataTableEnhanced(v.DataTable):
 
         self._update_items()
 
-    @t.observe("items")
     def _on_change_items(self, *change):
         if self.max_height is not None:
             items_per_page = (
@@ -87,7 +87,6 @@ class Table(DataTableEnhanced):
     nb_selected = t.Int(0).tag(sync=True)
     selected_keys = t.List([]).tag(sync=True)
     last_selected_key = t.Any(None).tag(sync=True)
-    df_uuid = t.Unicode("").tag(sync=True)  # random hash of the df
 
     def __init__(
         self,
@@ -129,7 +128,9 @@ class Table(DataTableEnhanced):
         self.badge = v.Badge(
             v_model=not kwargs.get("single_select", False),
             inline=True,
-            children=[self.unselect],
+            children=[self.unselect], 
+            dot=True
+
         )  # count the number of selected items
         self.dialog = v.Dialog(max_width="700px", v_model=False)
         self.columns_to_display_search = v.TextField(
@@ -171,9 +172,9 @@ class Table(DataTableEnhanced):
         self.last_selected_index: int = -1
 
         # ipyevents only works with ipywidgets not ipyvuetify
-        # if you want to activate ipyevents features, use the `w` attributes
+        # if you want to activate ipyevents features, use the `ui` attribute
         # https://github.com/widgetti/ipyvuetify/issues/216
-        self.w = ipw.VBox(children=[self])
+        self.ui = ipw.VBox(children=[self])
 
         ipw.jslink(
             (self.columns_to_display_search, "v_model"),
@@ -184,6 +185,7 @@ class Table(DataTableEnhanced):
         self.unselect.on_event("click", self._on_click_unselect)
         self.actions["undo_filters"]["obj"].on_event("click", self._undo_all_filters)
         self.actions["multi_sort"]["obj"].on_event("click", self._toggle_multi_sort)
+        self.observe(self.on_nb_selected, 'nb_selected')
         self.actions["select_column"]["obj"].observe(
             self._update_columns_to_hide, "v_model"
         )
@@ -291,7 +293,7 @@ class Table(DataTableEnhanced):
         self._update_df_search()
         self._update_items()
 
-        self.df_uuid = uuid.uuid4().hex
+        self.on_df_change()
 
     @property
     def df_selected(self) -> pl.LazyFrame:
@@ -347,13 +349,15 @@ class Table(DataTableEnhanced):
         # reset filter_on_selected widget
         if self.filter_on_selected:
             self._apply_filters()
+    
+    def on_df_change(self):
+        ... # used by subclasses
 
-    @t.observe("nb_selected")
     def on_nb_selected(self, *change):
         self._update_action_status()
 
     def _update_action_status(self):
-        # used by subclasses to able/disabled their actions
+        # used by subclasses
         ...
 
     def _update_columns_to_hide(self, change):
@@ -384,7 +388,7 @@ class Table(DataTableEnhanced):
                     )
                     # exclude already selected lines
                     .filter(~pl.col(self.row_nr).is_in(selected_indices))
-                    .select(self.row_nr)
+                    .select({self.row_nr, self.item_key})
                     .collect()
                     .to_dicts()
                 )
