@@ -157,7 +157,7 @@ class Table(DataTableEnhanced):
         self.actions = self._get_actions()
         self.v_slots = self._get_slots()
 
-        self.df = df
+        self._update_df(df)
 
         # create variables to handle ipyevents events
         self.event: dict[str, Any] = {}  # used to store the last event state
@@ -259,40 +259,7 @@ class Table(DataTableEnhanced):
 
     @df.setter
     def df(self, df: pl.LazyFrame) -> None:
-        # row_nr will be generated on the fly and should not be present at init
-        df = df.select(pl.exclude(self.row_nr))
-
-        if df.schema != self.schema:
-            self._update_schema(df.schema)
-
-        # df will be modify over and over
-        # so it's a good thing to cache the result when df change
-        # Moreover we need to have the height of df
-        eager_df = df.with_row_count(self.row_nr).collect()
-
-        self.df_height = eager_df.height
-        self._df = eager_df.lazy()
-
-        # align v_model, selected_keys and nb_selected
-        if self.selected_keys:
-            # If no item_key was given it is safer to erase v_model
-            if self.item_key == self.row_nr:
-                self.v_model = []
-                self.selected_keys = []
-                self.nb_selected = 0
-            else:
-                # realign row_rn
-                df_selected = eager_df.filter(
-                    pl.col(self.item_key).is_in(self.selected_keys)
-                )
-                self.v_model = df_selected.to_dicts()
-                self.selected_keys = df_selected[self.item_key].to_list()
-                self.nb_selected = len(self.selected_keys)
-
-        self._update_all_filters()
-        self._update_df_search()
-        self._update_items()
-
+        self._update_df(df)
         self.on_df_change()
 
     @property
@@ -350,11 +317,47 @@ class Table(DataTableEnhanced):
         if self.filter_on_selected:
             self._apply_filters()
     
-    def on_df_change(self):
-        ... # used by subclasses
+    def _update_df(self, df):
+        # row_nr will be generated on the fly and should not be present at init
+        df = df.select(pl.exclude(self.row_nr))
+
+        if df.schema != self.schema:
+            self._update_schema(df.schema)
+
+        # df will be modify over and over
+        # so it's a good thing to cache the result when df change
+        # Moreover we need to have the height of df
+        eager_df = df.with_row_count(self.row_nr).collect()
+
+        self.df_height = eager_df.height
+        self._df = eager_df.lazy()
+
+        # align v_model, selected_keys and nb_selected
+        if self.selected_keys:
+            # If no item_key was given it is safer to erase v_model
+            if self.item_key == self.row_nr:
+                self.v_model = []
+                self.selected_keys = []
+                self.nb_selected = 0
+            else:
+                # realign row_rn
+                df_selected = eager_df.filter(
+                    pl.col(self.item_key).is_in(self.selected_keys)
+                )
+                self.v_model = df_selected.to_dicts()
+                self.selected_keys = df_selected[self.item_key].to_list()
+                self.nb_selected = len(self.selected_keys)
+
+        self._update_all_filters()
+        self._update_df_search()
+        self._update_items()
 
     def on_nb_selected(self, *change):
         self._update_action_status()
+
+    def on_df_change(self):
+        # used by subclasses
+        ...
 
     def _update_action_status(self):
         # used by subclasses

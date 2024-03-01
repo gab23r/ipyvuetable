@@ -98,12 +98,17 @@ class EditingTable(Table):
                         date_time = None
                     new_item[c] = date_time
 
-        default_new_item = {
-            k: v for k, v in self.get_default_new_item().items() if k in new_item
-        }
+        # we use default_new_item only for creation not edition
+        if indexes is None:
+            default_new_item = {
+                k: v for k, v in self.get_default_new_item().items() if new_item.get(k) is None
+            }
+        else: 
+            default_new_item = {}
+
         new_item_df = (
-            pl.LazyFrame([new_item])
-            .with_columns(**default_new_item)
+            pl.LazyFrame([new_item | default_new_item])
+            # .with_columns(**default_new_item)
             .cast({k: v for k, v in self.schema.items() if k in new_item})
             .join(
                 pl.LazyFrame(indexes or [None], schema={self.row_nr: pl.UInt32})
