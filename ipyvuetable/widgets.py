@@ -1,11 +1,10 @@
-from typing import Any
+from typing import Any, cast
 
 import ipyvuetify as v
 import polars as pl
 
 from ipyvuetable.table import Table
-from ipyvuetify.extra import FileInput as _FileInput
-
+from ipyvuetify.extra.file_input import FileInput as _FileInput
 
 
 class VirtualAutocomplete(v.Content):
@@ -62,7 +61,9 @@ class VirtualAutocomplete(v.Content):
     @v_model.setter
     def v_model(self, value):
         self.table_select.v_model = (
-            self.table_select.df.filter(pl.col(self.name + "__key").is_in(value))
+            self.table_select.df.filter(
+                pl.col(self.name + "__key").is_in(pl.lit(value))
+            )
             .select(self.table_select.item_key)
             .collect()
             .to_dicts()
@@ -83,7 +84,6 @@ class VirtualAutocomplete(v.Content):
 
 
 class FileInput(_FileInput):
-
     def __init__(self, name, **kwargs):
         super().__init__(**kwargs)
         self.name = name
@@ -91,30 +91,28 @@ class FileInput(_FileInput):
     @property
     def v_model(self) -> str | None:
         file_info = next(iter(self.file_info), {})
-        return file_info.get('name')
+        return file_info.get("name")
 
     @v_model.setter
-    def v_model(self, value):
-        ... # it is not possible to modify v_model from the back
-
+    def v_model(self, value): ...  # it is not possible to modify v_model from the back
 
     def load_dataframes(self) -> list[pl.DataFrame]:
         dfs = []
         for file_info in self.get_files():
-            extension = file_info['name'].split('.')[-1]
-            bytes = file_info['file_obj'].readall()
+            extension = file_info["name"].split(".")[-1]
+            bytes_data = cast(bytes, file_info["file_obj"].readall())
             match extension:
-                case 'json':
-                    data = pl.read_json(bytes)
-                case 'csv':
-                    data = pl.read_csv(bytes)
-                case 'parquet':
-                    data = pl.read_parquet(bytes)
-                case ('xlsx', 'xls'):
-                    data = pl.read_excel(bytes)
+                case "json":
+                    data = pl.read_json(bytes_data)
+                case "csv":
+                    data = pl.read_csv(bytes_data)
+                case "parquet":
+                    data = pl.read_parquet(bytes_data)
+                case ("xlsx", "xls"):
+                    data = pl.read_excel(bytes_data)
                 case _:
-                    raise Exception(f'Extension {extension} is not supported, ')
-                
+                    raise Exception(f"Extension {extension} is not supported, ")
+
             dfs.append(data)
 
         return dfs

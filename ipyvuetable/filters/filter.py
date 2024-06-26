@@ -29,11 +29,9 @@ class Filter:
 
         self.menu.observe(self._update_selection, "v_model")
 
-    def _update_mask(self):
-        ...
+    def _update_mask(self): ...
 
-    def _update_filter(self):
-        ...
+    def _update_filter(self): ...
 
     def init_filter(self):
         self.is_initialized = True

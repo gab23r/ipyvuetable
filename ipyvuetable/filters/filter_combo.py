@@ -61,6 +61,11 @@ class FilterCombobox(Filter):
         self.filter_obj._update_df_search_sorted()
         self.filter_obj._update_items()
 
+        # dirty fix where table is filtered and is not in the first page
+        if self.filter_obj.page != 1:
+            self.filter_obj.page = 2
+            self.filter_obj.page = 1
+
     def _get_filter_values(self):
         """
         get the the list of possible values in the filter
@@ -81,6 +86,7 @@ class FilterCombobox(Filter):
                     self.filter_obj.df_selected,
                     left_on=self.name,
                     right_on=self.name + "__key",
+                    join_nulls=True,
                     how="semi",
                 ).select(pl.col(self.row_nr))
             )

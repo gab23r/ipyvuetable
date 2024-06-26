@@ -13,13 +13,20 @@ from ipyvuetable.widgets import FileInput, VirtualAutocomplete
 
 DialogWidget = VuetifyWidget | FileInput | VirtualAutocomplete
 
+
 class EditingTable(Table):
     default_dialog_values: dict[str, Any] = {}
     new_items: list[dict[str, Any]] = t.List(
         t.Dict({}), default_value=[{}], allow_none=True
-    ).tag(sync=True) # type: ignore
+    ).tag(sync=True)  # type: ignore
 
-    def __init__(self, df: pl.LazyFrame = pl.LazyFrame(), hide_dialog_keys: list[str] = [], *args: Any, **kwargs: Any):
+    def __init__(
+        self,
+        df: pl.LazyFrame = pl.LazyFrame(),
+        hide_dialog_keys: list[str] = [],
+        *args: Any,
+        **kwargs: Any,
+    ):
         super().__init__(df, *args, **kwargs)
 
         self.save_btn = v.Btn(children=["Save"], color="blue darken-1")
@@ -49,7 +56,11 @@ class EditingTable(Table):
         for col, values in self.df_selected.collect().to_dict(as_series=False).items():
             if col == self.row_nr:
                 self.dialog_values[col] = values
-            elif len(values) == 1 or len(set(str(v) for v in values)) == 1 and values[0] is not None:
+            elif (
+                len(values) == 1
+                or len(set(str(v) for v in values)) == 1
+                and values[0] is not None
+            ):
                 self.dialog_values[col] = values[0]
         self._show_dialog()
 
@@ -75,7 +86,8 @@ class EditingTable(Table):
             for c, widget in self.dialog_widgets.items()
             if indexes is None  # In case of click_new
             or len(indexes) == 1  # In case of click_edit one element
-            or len(indexes) > 1 and widget.v_model is not None # In case of click_edit multiple elements
+            or len(indexes) > 1
+            and widget.v_model is not None  # In case of click_edit multiple elements
         }
         for c, value in new_item.items():
             dtype = self.schema[c]
@@ -101,9 +113,11 @@ class EditingTable(Table):
         # we use default_new_item only for creation not edition
         if indexes is None:
             default_new_item = {
-                k: v for k, v in self.get_default_new_item().items() if new_item.get(k) is None
+                k: v
+                for k, v in self.get_default_new_item().items()
+                if new_item.get(k) is None
             }
-        else: 
+        else:
             default_new_item = {}
 
         new_item_df = (
@@ -111,25 +125,30 @@ class EditingTable(Table):
             # .with_columns(**default_new_item)
             .cast({k: v for k, v in self.schema.items() if k in new_item})
             .join(
-                pl.LazyFrame(indexes or [None], schema={self.row_nr: pl.UInt32})
-                .join(self.df_selected.select({self.item_key, self.row_nr}), how = 'left', on = self.row_nr),
+                pl.LazyFrame(indexes or [None], schema={self.row_nr: pl.UInt32}).join(
+                    self.df_selected.select({self.item_key, self.row_nr}),
+                    how="left",
+                    on=self.row_nr,
+                ),
                 how="cross",
             )
             .pipe(lambda d: d.select([c for c in self.df.columns if c in d.columns]))
         )
-        self.previous_items = self.df_selected.collect().rows_by_key(self.item_key, unique = True, named = True)
+        self.previous_items = self.df_selected.collect().rows_by_key(
+            self.item_key, unique=True, named=True
+        )
         self.new_items = new_item_df.collect().to_dicts()
 
-        new_item_df_updated = (
-            new_item_df.update(
-                pl.LazyFrame(self.new_items)
-                .cast({k: v for k, v in self.schema.items() if k in new_item})
-                .cast({self.row_nr: pl.UInt32})
-            )
+        new_item_df_updated = new_item_df.update(
+            pl.LazyFrame(self.new_items)
+            .cast({k: v for k, v in self.schema.items() if k in new_item})
+            .cast({self.row_nr: pl.UInt32})
         )
 
         if indexes is not None:
-            self.df = self.df.update(new_item_df_updated, on=self.row_nr, include_nulls=True)
+            self.df = self.df.update(
+                new_item_df_updated, on=self.row_nr, include_nulls=True
+            )
         else:
             self.df = pl.concat([self.df, new_item_df_updated])
 
@@ -151,17 +170,20 @@ class EditingTable(Table):
                     col,
                     column_repr,
                     single_select=single_select,
-                    item_key = f'{col}__key',
+                    item_key=f"{col}__key",
                     columns_to_hide=[f"{col}__key"],
                 )
-            elif col.lower().endswith('_file'):
-                widget = FileInput(name = col)
+            elif col.lower().endswith("_file"):
+                widget = FileInput(name=col)
             else:
                 if isinstance(dtype, pl.List):
                     widget = v.Combobox(
-                        v_model=[], multiple=True, small_chips=True, deletable_chips=True
+                        v_model=[],
+                        multiple=True,
+                        small_chips=True,
+                        deletable_chips=True,
                     )
-                elif dtype is pl.Boolean:  # type: ignore
+                elif isinstance(dtype, pl.Boolean):
                     widget = v.Checkbox(v_model=None)
                 elif isinstance(dtype, pl.Datetime):
                     widget = v.TextField(v_model=None, type="datetime-local")
@@ -175,7 +197,9 @@ class EditingTable(Table):
 
             dialog_widgets[col] = widget
 
-            if col in self.hide_dialog_keys and not isinstance(widget, FileInput): # hide is not available for FileInput
+            if col in self.hide_dialog_keys and not isinstance(
+                widget, FileInput
+            ):  # hide is not available for FileInput
                 widget.hide()
 
         return dialog_widgets
@@ -241,4 +265,3 @@ class EditingTable(Table):
         self.actions["delete"]["obj"].disabled = self.nb_selected < 1
         self.actions["edit"]["obj"].disabled = self.nb_selected < 1
         self.actions["duplicate"]["obj"].disabled = self.nb_selected != 1
-

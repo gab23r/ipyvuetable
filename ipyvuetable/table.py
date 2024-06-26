@@ -1,4 +1,3 @@
-import uuid
 from functools import reduce
 from typing import Any
 
@@ -8,7 +7,7 @@ import polars as pl
 import traitlets as t
 
 try:
-    from ipyevents import Event # type: ignore
+    from ipyevents import Event  # type: ignore
 except ModuleNotFoundError:
     Event = None
 
@@ -32,7 +31,7 @@ class DataTableEnhanced(v.DataTable):
         self.items_per_page = kwargs.pop("items_per_page", 10)
 
         self.on_event("update:options", self._on_change_option_data_table)
-        self.observe(self._on_change_items, 'items')
+        self.observe(self._on_change_items, "items")
 
     def _update_items(self):
         # In case of paginated Table _update_items need to be update and _on_change_items will be triggered automatically
@@ -121,16 +120,15 @@ class Table(DataTableEnhanced):
         self.filter_on_selected = False
 
         self.toolbar_title = v.ToolbarTitle(children=[title] if title else [])
-        self.filters_row = v.Html(tag="tr")
+        self.filters_row = v.Html(tag="tr")  # type: ignore
         self.unselect = v.Icon(
             children=["mdi-close"], color="primary", disabled=True, class_="pt-1"
         )
         self.badge = v.Badge(
             v_model=not kwargs.get("single_select", False),
             inline=True,
-            children=[self.unselect], 
-            dot=True
-
+            children=[self.unselect],
+            dot=True,
         )  # count the number of selected items
         self.dialog = v.Dialog(max_width="700px", v_model=False)
         self.columns_to_display_search = v.TextField(
@@ -161,13 +159,17 @@ class Table(DataTableEnhanced):
 
         # create variables to handle ipyevents events
         self.event: dict[str, Any] = {}  # used to store the last event state
-        self.click_event = Event(
-            source=self,
-            watched_events=["mousemove"],
-            prevent_default_action=True,
-            throttle_or_debounce="throttle",
-            wait=100,
-        ) if Event is not None else None
+        self.click_event = (
+            Event(
+                source=self,
+                watched_events=["mousemove"],
+                prevent_default_action=True,
+                throttle_or_debounce="throttle",
+                wait=100,
+            )
+            if Event is not None
+            else None
+        )
         self.selected_indices: set[int] = set()
         self.last_selected_index: int = -1
 
@@ -185,7 +187,7 @@ class Table(DataTableEnhanced):
         self.unselect.on_event("click", self._on_click_unselect)
         self.actions["undo_filters"]["obj"].on_event("click", self._undo_all_filters)
         self.actions["multi_sort"]["obj"].on_event("click", self._toggle_multi_sort)
-        self.observe(self.on_nb_selected, 'nb_selected')
+        self.observe(self.on_nb_selected, "nb_selected")
         self.actions["select_column"]["obj"].observe(
             self._update_columns_to_hide, "v_model"
         )
@@ -316,7 +318,7 @@ class Table(DataTableEnhanced):
         # reset filter_on_selected widget
         if self.filter_on_selected:
             self._apply_filters()
-    
+
     def _update_df(self, df):
         # row_nr will be generated on the fly and should not be present at init
         df = df.select(pl.exclude(self.row_nr))
@@ -444,7 +446,10 @@ class Table(DataTableEnhanced):
     def _update_df_search_sorted(self) -> None:
         if self.sort_by and self.sort_desc and all(c in self.df for c in self.sort_by):
             self.df_search_sorted = self.df_search.sort(
-                self.sort_by, descending=self.sort_desc, maintain_order=True
+                self.sort_by,
+                descending=self.sort_desc,
+                maintain_order=True,
+                nulls_last=True,
             )
         else:
             # sort to the initial order
@@ -521,14 +526,14 @@ class Table(DataTableEnhanced):
     def _update_filters_row(self):
         if self.show_filters:
             filters_child = [
-                v.Html(tag="td", children=[self.filters[c].menu])
+                v.Html(tag="td", children=[self.filters[c].menu])  # type: ignore
                 for c in self.schema
                 if c not in self.columns_to_hide
             ]
 
             if self.show_select:
                 filters_child = [
-                    v.Html(tag="td", class_="pr-8", children=[self.badge]),
+                    v.Html(tag="td", class_="pr-8", children=[self.badge]),  # type: ignore
                     *filters_child,
                 ]
 
