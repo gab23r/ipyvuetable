@@ -15,6 +15,7 @@ import ipyvuetable.utils as utils
 from ipyvuetable.filters import (
     Filter,
     FilterCombobox,
+    FilterDateTime,
     FilterDate,
     FilterListCombobox,
     FilterSlider,
@@ -512,6 +513,8 @@ class Table(DataTableEnhanced):
             elif dtype in [pl.Float32, pl.Float64]:  # type: ignore
                 self.filters[col] = FilterSlider(col, self)
             elif isinstance(dtype, pl.Datetime):
+                self.filters[col] = FilterDateTime(col, self)
+            elif isinstance(dtype, pl.Date):
                 self.filters[col] = FilterDate(col, self)
             else:
                 self.filters[col] = FilterCombobox(col, self)

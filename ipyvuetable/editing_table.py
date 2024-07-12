@@ -109,6 +109,12 @@ class EditingTable(Table):
                     except ValueError:
                         date_time = None
                     new_item[c] = date_time
+                elif isinstance(dtype, pl.Date):
+                    try:
+                        date = datetime.datetime.strptime(value, "%Y-%m-%d")
+                    except ValueError:
+                        date = None
+                    new_item[c] = date
 
         # we use default_new_item only for creation not edition
         if indexes is None:
@@ -137,7 +143,12 @@ class EditingTable(Table):
         self.previous_items = self.df_selected.collect().rows_by_key(
             self.item_key, unique=True, named=True
         )
-        self.new_items = new_item_df.collect().to_dicts()
+        self.new_items = (
+            new_item_df
+            # date are not jsonable
+            .with_columns(pl.col(pl.Date).dt.to_string('%Y-%m-%d')) 
+            .collect().to_dicts()
+        )
 
         new_item_df_updated = new_item_df.update(
             pl.LazyFrame(self.new_items)
@@ -187,6 +198,8 @@ class EditingTable(Table):
                     widget = v.Checkbox(v_model=None)
                 elif isinstance(dtype, pl.Datetime):
                     widget = v.TextField(v_model=None, type="datetime-local")
+                elif isinstance(dtype, pl.Date):
+                    widget = v.TextField(v_model=None, type="date")
                 elif dtype in pl.NUMERIC_DTYPES:
                     widget = v.TextField(v_model=None, type="number")
                 else:
@@ -218,6 +231,8 @@ class EditingTable(Table):
             value = self.dialog_values.get(c)
             if isinstance(dtype, pl.Datetime):
                 widget.v_model = value.strftime("%Y-%m-%dT%H:%M") if value else None
+            elif isinstance(dtype, pl.Date):
+                widget.v_model = value.strftime("%Y-%m-%d") if value else None
             else:
                 widget.v_model = self.dialog_values.get(c)
 

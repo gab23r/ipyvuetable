@@ -6,13 +6,13 @@ import polars as pl
 from ipyvuetable.filters import Filter
 
 
-class FilterDate(Filter):
+class FilterDateTime(Filter):
     def __init__(self, name, table, **kwargs):
         super().__init__(name, table, **kwargs)
 
     def init_filter(self):
         super().init_filter()
-        self.default_range: list[datetime.date] | None = None
+        self.default_range: list[datetime.datetime] | None = None
 
         self.max_field = v.TextField(
             v_model=None, class_="pa-2", label="max", type="date"
@@ -37,7 +37,7 @@ class FilterDate(Filter):
 
     def _update_mask(self):
         if self.default_range:
-            min_date, max_date = str_to_date(
+            min_date, max_date = str_to_datetime(
                 [self.min_field.v_model, self.max_field.v_model]
             )
 
@@ -68,25 +68,25 @@ class FilterDate(Filter):
         # set default values if needed
         if self.min_field.v_model is None and self.max_field.v_model is None:
             if self.default_range:
-                self.min_field.v_model, self.max_field.v_model = date_to_str(
+                self.min_field.v_model, self.max_field.v_model = datetime_to_str(
                     self.default_range
                 )
 
     def _undo(self):
         super()._undo()
         if self.default_range:
-            self.min_field.v_model, self.max_field.v_model = date_to_str(
+            self.min_field.v_model, self.max_field.v_model = datetime_to_str(
                 self.default_range
             )
         else:
             self.min_field.v_model = self.max_field.v_model = None
 
 
-def date_to_str(list_date: list[datetime.date]) -> list[str]:
-    list_str = [datetime.date.strftime(d, "%Y-%m-%d") for d in list_date]
+def datetime_to_str(list_date: list[datetime.datetime]) -> list[str]:
+    list_str = [datetime.datetime.strftime(d, "%Y-%m-%d") for d in list_date]
     return list_str
 
 
-def str_to_date(list_str: list[str]) -> list[datetime.date]:
-    list_date = [datetime.datetime.strptime(d, "%Y-%m-%d").date() for d in list_str]
+def str_to_datetime(list_str: list[str]) -> list[datetime.datetime]:
+    list_date = [datetime.datetime.strptime(d, "%Y-%m-%d") for d in list_str]
     return list_date
