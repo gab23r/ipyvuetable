@@ -146,8 +146,9 @@ class EditingTable(Table):
         self.new_items = (
             new_item_df
             # date are not jsonable
-            .with_columns(pl.col(pl.Date).dt.to_string('%Y-%m-%d')) 
-            .collect().to_dicts()
+            .with_columns(pl.col(pl.Date).dt.to_string("%Y-%m-%d"))
+            .collect()
+            .to_dicts()
         )
 
         new_item_df_updated = new_item_df.update(
