@@ -8,5 +8,5 @@ from ipyvuetable.table import Table
 # load css classes
 display(HTML(f"<style>{(Path(__file__).parent / 'custom.css').read_text()}</style>"))
 
-__version__ = "0.3.0"
+__version__ = "0.5.0"
 __all__ = ["Table", "EditingTable"]
