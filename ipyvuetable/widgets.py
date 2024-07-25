@@ -83,14 +83,21 @@ class VirtualAutocomplete(v.Content):
         self.textfield.v_model = ", ".join(values) if values else None
 
 
-class FileInput(_FileInput):
+class FileInput(v.Col):
     def __init__(self, name, **kwargs):
-        super().__init__(**kwargs)
         self.name = name
+        self.file_input = _FileInput()
+        super().__init__(
+            children=[
+                v.Html(tag="div", children=[name]),  # type: ignore
+                self.file_input,
+            ],
+            **kwargs,
+        )
 
     @property
     def v_model(self) -> str | None:
-        file_info = next(iter(self.file_info), {})
+        file_info = next(iter(self.file_input.file_info), {})
         return file_info.get("name")
 
     @v_model.setter
@@ -98,7 +105,7 @@ class FileInput(_FileInput):
 
     def load_dataframes(self) -> list[pl.DataFrame]:
         dfs = []
-        for file_info in self.get_files():
+        for file_info in self.file_input.get_files():
             extension = file_info["name"].split(".")[-1]
             bytes_data = cast(bytes, file_info["file_obj"].readall())
             match extension:
