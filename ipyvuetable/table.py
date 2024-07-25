@@ -85,8 +85,8 @@ class Table(DataTableEnhanced):
     df_search_sorted: pl.LazyFrame  # dataframe resulting of the sort
     df_paginated: pl.LazyFrame  # dataframe rendered based on the panigation
     nb_selected = t.Int(0).tag(sync=True)
-    selected_keys = t.List([]).tag(sync=True)
-    last_selected_key = t.Any(None).tag(sync=True)
+    selected_keys = []  # not trait as it can be any python object ex date
+    last_selected_key = None
 
     def __init__(
         self,
@@ -267,21 +267,21 @@ class Table(DataTableEnhanced):
 
     @property
     def df_selected(self) -> pl.LazyFrame:
-        if any(row[self.item_key] is None for row in self.v_model):
+        if any(row[self.row_nr] is None for row in self.v_model):
             filter_expr = (
-                pl.col(self.item_key).is_in(
+                pl.col(self.row_nr).is_in(
                     [
-                        row[self.item_key]
+                        row[self.row_nr]
                         for row in self.v_model
-                        if row[self.item_key] is not None
+                        if row[self.row_nr] is not None
                     ]
                 )
-                | pl.col(self.item_key).is_null()
+                | pl.col(self.row_nr).is_null()
             )
 
         else:
-            filter_expr = pl.col(self.item_key).is_in(
-                [row[self.item_key] for row in self.v_model]
+            filter_expr = pl.col(self.row_nr).is_in(
+                [row[self.row_nr] for row in self.v_model]
             )
         return self.df.filter(filter_expr)
 
@@ -298,7 +298,14 @@ class Table(DataTableEnhanced):
 
     def _on_input_table(self, *args):
         previous_selected_keys = self.selected_keys or []
-        self.selected_keys = [i[self.item_key] for i in self.v_model]
+        selected_rows = [i[self.row_nr] for i in self.v_model]
+        self.selected_keys = (
+            self.df.filter(pl.col(self.row_nr).is_in(selected_rows))
+            .select(self.item_key)
+            .collect()
+            .to_series()
+            .to_list()
+        )
         self.last_selected_key = next(
             (k for k in self.selected_keys if k not in previous_selected_keys), None
         )
@@ -385,7 +392,7 @@ class Table(DataTableEnhanced):
             last_selected_index = new_selected_indices.pop()
 
             if self.event.get("shiftKey") and self.last_selected_index != -1:
-                items_in_beetween = (
+                rows_in_beetween = (
                     self.df_search_sorted.filter(
                         pl.col(self.row_nr)
                         .is_in([self.last_selected_index, last_selected_index])
@@ -394,12 +401,14 @@ class Table(DataTableEnhanced):
                     )
                     # exclude already selected lines
                     .filter(~pl.col(self.row_nr).is_in(selected_indices))
-                    .select({self.row_nr, self.item_key})
+                    .select(self.row_nr)
+                )
+                new_v_model = (
+                    self.jsonify(self.df.join(rows_in_beetween, on=self.row_nr))
                     .collect()
                     .to_dicts()
                 )
-
-                self.v_model = self.v_model + items_in_beetween
+                self.v_model = self.v_model + new_v_model
         else:
             last_selected_index = -1
 
@@ -416,8 +425,12 @@ class Table(DataTableEnhanced):
         else:
             df_paginated = self.df_search_sorted
 
-        # apply custom repr +  special case for boolean and datetime64
-        fill_null_repr_exprs = [
+        df_paginated = self.jsonify(df_paginated)
+
+        return df_paginated
+
+    def jsonify(self, df: pl.LazyFrame) -> pl.LazyFrame:
+        df = df.with_columns(
             pl.col(pl.Boolean)
             .exclude("^*__key$")
             .map_dict({True: "✅", False: "❌"}, return_dtype=pl.Utf8),
@@ -425,20 +438,18 @@ class Table(DataTableEnhanced):
             .exclude("^*__key$")
             .dt.strftime("%Y-%m-%d %H:%M:%S"),
             pl.col(pl.Date).exclude("^*__key$").dt.strftime("%Y-%m-%d"),
-        ]
+        )
+        fill_null_repr_exprs = []
         for c, df_repr in self.columns_repr.items():
             if c in self.schema:
                 if not isinstance(self.schema[c], pl.List):
-                    df_paginated = df_paginated.join(df_repr, on=c, how="left")
+                    df = df.join(df_repr, on=c, how="left")
                     fill_null_repr_exprs.append(
                         pl.col(c + "__repr").fill_null(pl.col(c).cast(pl.Utf8)).alias(c)
                     )
 
-        df_paginated = df_paginated.with_columns(fill_null_repr_exprs).select(
-            self.row_nr, *self.schema
-        )
-
-        return df_paginated
+        df = df.with_columns(fill_null_repr_exprs).select(self.row_nr, *self.schema)
+        return df
 
     def _update_df_search(self) -> None:
         self.df_search, self.server_items_length = self._get_df_search()
