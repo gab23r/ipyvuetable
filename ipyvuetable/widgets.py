@@ -83,7 +83,7 @@ class VirtualAutocomplete(v.Content):
         self.textfield.v_model = ", ".join(values) if values else None
 
 
-class FileInput(v.Col):
+class FileInput(v.Flex):
     def __init__(self, name, **kwargs):
         self.name = name
         self.file_input = _FileInput()

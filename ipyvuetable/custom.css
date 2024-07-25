@@ -26,3 +26,9 @@
  .jp-OutputArea-output {
     background-color: transparent;
  }  
+
+ /* to reduce space in FileInput */
+ .vuetify-styles .v-text-field {
+    padding-top: 0px;
+    margin-top: 0px;
+ }
