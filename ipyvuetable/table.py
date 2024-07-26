@@ -4,6 +4,7 @@ from typing import Any
 import ipyvuetify as v
 import ipywidgets as ipw
 import polars as pl
+from polars.type_aliases import TimeUnit
 import traitlets as t
 
 try:
@@ -439,6 +440,29 @@ class Table(DataTableEnhanced):
             .dt.strftime("%Y-%m-%d %H:%M:%S"),
             pl.col(pl.Date).exclude("^*__key$").dt.strftime("%Y-%m-%d"),
         )
+        # duration to string is not manage by polars
+        # https://github.com/pola-rs/polars/issues/7174
+        duration_cols = pl.selectors.expand_selector(
+            df,
+            pl.selectors.by_dtype(
+                [pl.Duration(time_unit=tu) for tu in TimeUnit.__args__]
+            ),
+        )
+
+        duration_repr_exprs = []
+        for col in duration_cols:
+            total_seconds = pl.col(col).dt.total_seconds()
+            duration_repr_exprs.append(
+                pl.format(
+                    "{}:{}:{}",
+                    (total_seconds // 3600).cast(pl.String).str.pad_start(2, "0"),
+                    (total_seconds % 3600 // 60).cast(pl.String).str.pad_start(2, "0"),
+                    (total_seconds % 60).cast(pl.String).str.pad_start(2, "0"),
+                ).alias(col)
+            )
+
+        df = df.with_columns(duration_repr_exprs)
+
         fill_null_repr_exprs = []
         for c, df_repr in self.columns_repr.items():
             if c in self.schema:

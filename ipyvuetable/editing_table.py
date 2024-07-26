@@ -109,6 +109,17 @@ class EditingTable(Table):
                     except ValueError:
                         date_time = None
                     new_item[c] = date_time
+                elif isinstance(dtype, pl.Duration):
+                    try:
+                        hours, minutes, *seconds = value.split(":")
+                        seconds = int(seconds[0]) if seconds else 0
+                        duration = datetime.timedelta(
+                            hours=int(hours), minutes=int(minutes), seconds=seconds
+                        )
+                        print(duration)
+                    except ValueError:
+                        duration = None
+                    new_item[c] = duration
                 elif isinstance(dtype, pl.Date):
                     try:
                         date = datetime.datetime.strptime(value, "%Y-%m-%d")
@@ -143,18 +154,12 @@ class EditingTable(Table):
         self.previous_items = self.df_selected.collect().rows_by_key(
             self.item_key, unique=True, named=True
         )
-        self.new_items = (
-            new_item_df
-            # date are not jsonable
-            .with_columns(pl.col(pl.Date).dt.to_string("%Y-%m-%d"))
-            .collect()
-            .to_dicts()
-        )
+        self.new_items = new_item_df.pipe(self.jsonify).collect().to_dicts()
 
         new_item_df_updated = new_item_df.update(
-            pl.LazyFrame(self.new_items)
-            .cast({k: v for k, v in self.schema.items() if k in new_item})
-            .cast({self.row_nr: pl.UInt32})
+            new_item_df.cast(
+                {k: v for k, v in self.schema.items() if k in new_item}
+            ).cast({self.row_nr: pl.UInt32})
         )
 
         if indexes is not None:
@@ -234,6 +239,12 @@ class EditingTable(Table):
                 widget.v_model = value.strftime("%Y-%m-%dT%H:%M") if value else None
             elif isinstance(dtype, pl.Date):
                 widget.v_model = value.strftime("%Y-%m-%d") if value else None
+            elif isinstance(dtype, pl.Duration):
+                if value is not None:
+                    total_seconds = value.total_seconds()  # type: ignore
+                    widget.v_model = f"{int(total_seconds // 3600)}:{int(total_seconds % 3600 // 60)}:{int(total_seconds % 60)}"
+                else:
+                    widget.v_model = None
             else:
                 widget.v_model = self.dialog_values.get(c)
 
