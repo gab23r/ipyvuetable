@@ -91,6 +91,10 @@ class EditingTable(Table):
         }
         for c, value in new_item.items():
             dtype = self.schema[c]
+            # special case of new bool
+            # Null is considered False
+            if isinstance(dtype, pl.Boolean) and indexes is None:
+                new_item[c] = value is True
             if value is not None:
                 if dtype in pl.FLOAT_DTYPES:
                     new_item[c] = float(value)

@@ -355,7 +355,7 @@ class Table(DataTableEnhanced):
                 df_selected = eager_df.filter(
                     pl.col(self.item_key).is_in(self.selected_keys)
                 )
-                self.v_model = df_selected.to_dicts()
+                self.v_model = df_selected.pipe(self.jsonify).pipe(self.apply_custom_repr).to_dicts()
                 self.selected_keys = df_selected[self.item_key].to_list()
                 self.nb_selected = len(self.selected_keys)
 
@@ -426,15 +426,12 @@ class Table(DataTableEnhanced):
         else:
             df_paginated = self.df_search_sorted
 
-        df_paginated = self.jsonify(df_paginated)
+        df_paginated = self.jsonify(df_paginated).pipe(self.apply_custom_repr)
 
         return df_paginated
 
     def jsonify(self, df: pl.LazyFrame) -> pl.LazyFrame:
         df = df.with_columns(
-            pl.col(pl.Boolean)
-            .exclude("^*__key$")
-            .map_dict({True: "✅", False: "❌"}, return_dtype=pl.Utf8),
             pl.col(pl.DATETIME_DTYPES)
             .exclude("^*__key$")
             .dt.strftime("%Y-%m-%d %H:%M:%S"),
@@ -462,6 +459,14 @@ class Table(DataTableEnhanced):
             )
 
         df = df.with_columns(duration_repr_exprs)
+
+        return df
+
+    def apply_custom_repr(self, df: pl.LazyFrame) -> pl.LazyFrame:
+        df = df.with_columns(
+            pl.col(pl.Boolean)
+            .map_dict({True: "✅", False: "❌"}, return_dtype=pl.Utf8),
+        )
 
         fill_null_repr_exprs = []
         for c, df_repr in self.columns_repr.items():
