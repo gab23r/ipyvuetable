@@ -110,7 +110,7 @@ class FilterCombobox(Filter):
                 self.table.columns_repr[self.name], on=self.name, how="left"
             ).select(  # left to keep the order
                 [
-                    pl.col(self.name).suffix("__key"),
+                    pl.col(self.name).name.suffix("__key"),
                     pl.col(self.name + "__repr")
                     .fill_null(pl.col(self.name))
                     .alias(self.name),
@@ -118,7 +118,7 @@ class FilterCombobox(Filter):
             )
         else:
             df = filter_df_sorted.select(
-                [pl.col(self.name).suffix("__key"), pl.col(self.name)]
+                [pl.col(self.name).name.suffix("__key"), pl.col(self.name)]
             )
         return df
 

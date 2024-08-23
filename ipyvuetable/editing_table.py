@@ -181,7 +181,7 @@ class EditingTable(Table):
                 single_select = not isinstance(dtype, pl.List)
                 column_repr = (
                     column_repr.select(
-                        [pl.col(col).suffix("__key"), pl.col(f"{col}__repr").alias(col)]
+                        [pl.col(col).name.suffix("__key"), pl.col(f"{col}__repr").alias(col)]
                     )
                     # https://github.com/pola-rs/polars/issues/10982
                     .collect()

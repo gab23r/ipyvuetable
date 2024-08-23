@@ -397,7 +397,7 @@ class Table(DataTableEnhanced):
                     self.df_search_sorted.filter(
                         pl.col(self.row_nr)
                         .is_in([self.last_selected_index, last_selected_index])
-                        .cumsum()
+                        .cum_sum()
                         == 1
                     )
                     # exclude already selected lines
@@ -465,7 +465,7 @@ class Table(DataTableEnhanced):
     def apply_custom_repr(self, df: pl.LazyFrame) -> pl.LazyFrame:
         df = df.with_columns(
             pl.col(pl.Boolean)
-            .map_dict({True: "✅", False: "❌"}, return_dtype=pl.Utf8),
+            .replace_strict({True: "✅", False: "❌"}, return_dtype=pl.Utf8, default=None),
         )
 
         fill_null_repr_exprs = []

@@ -11,7 +11,7 @@ def add_tooltip(obj, str_tooltip):
     )
 
 
-class IconAlert(v.VuetifyTemplate):
+class IconAlert(v.VuetifyTemplate): # type: ignore
     """
     custom icon that throw an alert when click
     Only feasible with VuetifyTemplate
@@ -44,7 +44,7 @@ class IconAlert(v.VuetifyTemplate):
         self.str_alert = str_alert
         self.str_icon = str_icon
         self.customized_on_click = customized_on_click
-        v.VuetifyTemplate.__init__(self, *args, **kwargs)
+        v.VuetifyTemplate.__init__(self, *args, **kwargs) # type: ignore
 
     @traitlets.default("template")
     def _template(self):
