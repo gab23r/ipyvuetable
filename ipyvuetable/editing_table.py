@@ -160,7 +160,7 @@ class EditingTable(Table):
         )
         self.new_items = new_item_df.pipe(self.jsonify).collect().to_dicts()
 
-        new_item_df_updated = new_item_df.update(
+        self.df_updated_rows = new_item_df.update(
             new_item_df.cast(
                 {k: v for k, v in self.schema.items() if k in new_item}
             ).cast({self.row_nr: pl.UInt32})
@@ -168,10 +168,10 @@ class EditingTable(Table):
 
         if indexes is not None:
             self.df = self.df.update(
-                new_item_df_updated, on=self.row_nr, include_nulls=True
+                self.df_updated_rows, on=self.row_nr, include_nulls=True
             )
         else:
-            self.df = pl.concat([self.df, new_item_df_updated])
+            self.df = pl.concat([self.df, self.df_updated_rows])
 
     def _get_dialog_widgets(self) -> dict[str, DialogWidget]:
         dialog_widgets = {}
