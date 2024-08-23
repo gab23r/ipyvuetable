@@ -331,9 +331,10 @@ class Table(DataTableEnhanced):
     def _update_df(self, df):
         # row_nr will be generated on the fly and should not be present at init
         df = df.select(pl.exclude(self.row_nr))
-
-        if df.schema != self.schema:
-            self._update_schema(df.schema)
+        
+        schema = df.collect_schema()
+        if schema != self.schema:
+            self._update_schema(schema)
 
         # df will be modify over and over
         # so it's a good thing to cache the result when df change
