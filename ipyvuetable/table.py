@@ -1,4 +1,6 @@
+import base64
 from functools import reduce
+import io
 from typing import Any
 
 import ipyvuetify as v
@@ -100,6 +102,7 @@ class Table(DataTableEnhanced):
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
+        self.title = title
         self.columns_repr = columns_repr
         self.show_actions = show_actions
         self.columns_to_hide = columns_to_hide
@@ -153,6 +156,7 @@ class Table(DataTableEnhanced):
         self.custom_actions = (
             self._get_custom_actions()
         )  # could be defined be subclasses
+        self.payload = None # the payload to be downloaded
         self.actions = self._get_actions()
         self.v_slots = self._get_slots()
 
@@ -254,7 +258,15 @@ class Table(DataTableEnhanced):
             "tooltip": "Filter on selected rows",
         }
 
+        self.download_btn = self.get_download_btn()
+        actions["download"] = {
+            "obj": self.download_btn,
+            "tooltip": "Download table",
+        }
+
         return actions
+
+
 
     @property
     def df(self) -> pl.LazyFrame:
@@ -634,3 +646,52 @@ class Table(DataTableEnhanced):
             self.filter_on_selected = False
             widget.children = ["mdi-checkbox-marked-circle-outline"]
         self._apply_filters()
+
+
+    def generate_payload(self):
+        output = io.BytesIO()
+
+        utils.duration_to_string(self.df.drop(self.row_nr)).collect().write_csv(output)
+        b64 = base64.b64encode(output.getvalue())
+        payload = b64.decode()
+
+        return payload
+
+    def _on_click_download_btn(self, widget, event, data):
+        
+        if self.payload is None:
+            self.payload = self.generate_payload()
+            self.download_btn.children[0].attributes = {
+                "class": "mdi mdi-arrow-down-thick",
+                "style": "font-size:24px;",
+            }
+            self.download_btn.attributes = {
+                "download": f"{self.title}.csv",
+                "href": f"data:text/csv;base64,{self.payload}",
+            }
+
+        else:
+            self.download_btn.children[0].attributes = {
+                "class": "mdi mdi-arrow-down-thick",
+                "style": "font-size:24px; color: grey",
+            }
+            self.download_btn.attributes = {}
+            self.payload = None
+
+    def get_download_btn(self):
+        download_btn = v.Html(# type: ignore
+            tag="a",
+            children=[
+                v.Html(# type: ignore
+                    tag="i",
+                    attributes={
+                        "class": "mdi mdi-arrow-down-thick",
+                        "style": "font-size:24px; color: grey",
+                    },
+                )
+            ],
+        )
+
+        download_btn.on_event("click", self._on_click_download_btn)
+
+        return download_btn

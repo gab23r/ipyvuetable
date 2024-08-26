@@ -84,12 +84,14 @@ class VirtualAutocomplete(v.Content):
 
 
 class FileInput(v.Flex):
-    def __init__(self, name, **kwargs):
+    def __init__(self, name=None, **kwargs):
         self.name = name
         self.file_input = _FileInput()
         super().__init__(
             children=[
-                v.Html(tag="div", children=[name]),  # type: ignore
+                v.Html(tag="div", children=[name] if name else [])  # type: ignore
+            ]
+            + [
                 self.file_input,
             ],
             **kwargs,

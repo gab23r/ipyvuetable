@@ -153,7 +153,11 @@ class EditingTable(Table):
                 ),
                 how="cross",
             )
-            .pipe(lambda d: d.select([c for c in self.df.collect_schema().names() if c in d.columns]))
+            .pipe(
+                lambda d: d.select(
+                    [c for c in self.df.collect_schema().names() if c in d.columns]
+                )
+            )
         )
         self.previous_items = self.df_selected.collect().rows_by_key(
             self.item_key, unique=True, named=True
@@ -181,7 +185,10 @@ class EditingTable(Table):
                 single_select = not isinstance(dtype, pl.List)
                 column_repr = (
                     column_repr.select(
-                        [pl.col(col).name.suffix("__key"), pl.col(f"{col}__repr").alias(col)]
+                        [
+                            pl.col(col).name.suffix("__key"),
+                            pl.col(f"{col}__repr").alias(col),
+                        ]
                     )
                     # https://github.com/pola-rs/polars/issues/10982
                     .collect()
@@ -256,6 +263,13 @@ class EditingTable(Table):
 
     def _get_actions(self):
         actions = super()._get_actions()
+
+        upload_btn = self.get_upload_btn()
+        actions["upload_btn"] = {
+            "obj": upload_btn,
+            "tooltip": "Upload a new table",
+        }
+
         actions["delete"] = {
             "obj": utils.IconAlert(
                 "mdi-delete",
@@ -291,6 +305,40 @@ class EditingTable(Table):
 
         return actions
 
+    def get_upload_btn(self):
+        self.upload_btn = FileInput("Upload a table")
+        menu = v.Menu(
+            v_model=False,
+            left=True,
+            close_on_content_click=False,
+            transition="scale-transition",
+            offset_y=True,
+            children=[v.Card(children=[self.upload_btn])],
+            v_slots=[
+                {
+                    "name": "activator",
+                    "variable": "menus",
+                    "children": v.Icon(
+                        v_bind="menus.attrs",
+                        v_on="menus.on",
+                        children=["mdi-arrow-up-thick"],
+                    ),
+                }
+            ],
+        )
+    
+        def _menu_change(change):
+            if not change["new"]:  # Menu is close
+                if dfs := self.upload_btn.load_dataframes():
+                    self.df = dfs[0].lazy()
+                menu.v_slots[0]["children"].color = None
+            else:
+                menu.v_slots[0]["children"].color = "primary"
+
+        menu.observe(_menu_change, "v_model")
+
+        return menu
+    
     def _update_action_status(self):
         super()._update_action_status()
         self.actions["delete"]["obj"].disabled = self.nb_selected < 1

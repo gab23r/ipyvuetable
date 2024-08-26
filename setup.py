@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ipyvuetable",
-    version="0.7.5",
+    version="0.7.7",
     author="Gabriel Robin",
     description="Table widget for Jupyter Notebook and JupyterLab",
     long_description=long_description,
