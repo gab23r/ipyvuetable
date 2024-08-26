@@ -1,5 +1,49 @@
 import traitlets
 import ipyvuetify as v
+from polars.type_aliases import TimeUnit
+import polars as pl
+
+def string_to_duration(df: pl.LazyFrame) -> pl.LazyFrame:
+    """From "07:45:00" (pl.String) to pl.Duration """
+    duration_expr = pl.col.opening_time.str.split_exact(":", 2)
+    hours = duration_expr.struct[0]
+    minutes = duration_expr.struct[1]
+    seconds = duration_expr.struct[2]
+
+    return (
+        df
+        .with_columns(
+            duration=pl.duration(hours=hours, minutes=minutes, seconds=seconds),
+        )
+    )
+
+def duration_to_string(df: pl.LazyFrame) -> pl.LazyFrame:
+    """
+    Duration to string is not manage by polars
+    https://github.com/pola-rs/polars/issues/7174
+    """
+    duration_cols = pl.selectors.expand_selector(
+        df,
+        pl.selectors.by_dtype(
+            [pl.Duration(time_unit=tu) for tu in TimeUnit.__args__]
+        ),
+    )
+
+    duration_repr_exprs = []
+    for col in duration_cols:
+        total_seconds = pl.col(col).dt.total_seconds()
+        duration_repr_exprs.append(
+            pl.format(
+                "{}:{}:{}",
+                (total_seconds // 3600).cast(pl.String).str.pad_start(2, "0"),
+                (total_seconds % 3600 // 60).cast(pl.String).str.pad_start(2, "0"),
+                (total_seconds % 60).cast(pl.String).str.pad_start(2, "0"),
+            ).alias(col)
+        )
+
+    df = df.with_columns(duration_repr_exprs)
+
+    return df
 
 
 def add_tooltip(obj, str_tooltip):
