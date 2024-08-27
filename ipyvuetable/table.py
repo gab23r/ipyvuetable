@@ -274,8 +274,8 @@ class Table(DataTableEnhanced):
 
     @df.setter
     def df(self, df: pl.LazyFrame) -> None:
+        df = self.on_df_change(df)
         self._update_df(df)
-        self.on_df_change()
 
     @property
     def df_selected(self) -> pl.LazyFrame:
@@ -378,9 +378,9 @@ class Table(DataTableEnhanced):
     def on_nb_selected(self, *change):
         self._update_action_status()
 
-    def on_df_change(self):
+    def on_df_change(self, df: pl.LazyFrame)-> pl.LazyFrame:
         # used by subclasses
-        ...
+        return df
 
     def _update_action_status(self):
         # used by subclasses
