@@ -98,13 +98,13 @@ class Table(DataTableEnhanced):
         item_key: str | None = None,
         columns_repr: dict[str, pl.LazyFrame] = {},
         columns_to_hide: list[str] = [],
-        show_actions: bool = True,
+        actions_to_hide: list = [],
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
         self.title = title
         self.columns_repr = columns_repr
-        self.show_actions = show_actions
+        self.actions_to_hide = actions_to_hide
         self.columns_to_hide = columns_to_hide
 
         self.page = kwargs.pop("page", 1)
@@ -156,7 +156,7 @@ class Table(DataTableEnhanced):
         self.custom_actions = (
             self._get_custom_actions()
         )  # could be defined be subclasses
-        self.payload = None # the payload to be downloaded
+        self.payload = None  # the payload to be downloaded
         self.actions = self._get_actions()
         self.v_slots = self._get_slots()
 
@@ -266,8 +266,6 @@ class Table(DataTableEnhanced):
 
         return actions
 
-
-
     @property
     def df(self) -> pl.LazyFrame:
         return self._df
@@ -342,7 +340,7 @@ class Table(DataTableEnhanced):
     def _update_df(self, df):
         # row_nr will be generated on the fly and should not be present at init
         df = df.select(pl.exclude(self.row_nr))
-        
+
         schema = df.collect_schema()
         if schema != self.schema:
             self._update_schema(schema)
@@ -367,7 +365,11 @@ class Table(DataTableEnhanced):
                 df_selected = eager_df.filter(
                     pl.col(self.item_key).is_in(self.selected_keys)
                 )
-                self.v_model = df_selected.pipe(self.jsonify).pipe(self.apply_custom_repr).to_dicts()
+                self.v_model = (
+                    df_selected.pipe(self.jsonify)
+                    .pipe(self.apply_custom_repr)
+                    .to_dicts()
+                )
                 self.selected_keys = df_selected[self.item_key].to_list()
                 self.nb_selected = len(self.selected_keys)
 
@@ -378,7 +380,7 @@ class Table(DataTableEnhanced):
     def on_nb_selected(self, *change):
         self._update_action_status()
 
-    def on_df_change(self, df: pl.LazyFrame)-> pl.LazyFrame:
+    def on_df_change(self, df: pl.LazyFrame) -> pl.LazyFrame:
         # used by subclasses
         return df
 
@@ -443,21 +445,20 @@ class Table(DataTableEnhanced):
         return df_paginated
 
     def jsonify(self, df: pl.LazyFrame) -> pl.LazyFrame:
-        df = (
-            df.with_columns(
-                pl.col(pl.DATETIME_DTYPES)
-                .exclude("^*__key$")
-                .dt.strftime("%Y-%m-%d %H:%M:%S"),
-                pl.col(pl.Date).exclude("^*__key$").dt.strftime("%Y-%m-%d"),
-            ).pipe(utils.duration_to_string)
-        )
+        df = df.with_columns(
+            pl.col(pl.DATETIME_DTYPES)
+            .exclude("^*__key$")
+            .dt.strftime("%Y-%m-%d %H:%M:%S"),
+            pl.col(pl.Date).exclude("^*__key$").dt.strftime("%Y-%m-%d"),
+        ).pipe(utils.duration_to_string)
 
         return df
 
     def apply_custom_repr(self, df: pl.LazyFrame) -> pl.LazyFrame:
         df = df.with_columns(
-            pl.col(pl.Boolean)
-            .replace_strict({True: "✅", False: "❌"}, return_dtype=pl.Utf8, default=None),
+            pl.col(pl.Boolean).replace_strict(
+                {True: "✅", False: "❌"}, return_dtype=pl.Utf8, default=None
+            ),
         )
 
         fill_null_repr_exprs = []
@@ -494,16 +495,13 @@ class Table(DataTableEnhanced):
         self.items = self.df_paginated.collect().to_dicts()
 
     def _get_slots(self) -> list[dict[str, Any]]:
-        tooltip_actions = (
-            [
-                utils.add_tooltip(action_d["obj"], action_d["tooltip"])
-                if "tooltip" in action_d
-                else action_d["obj"]
-                for action_d in self.actions.values()
-            ]
-            if self.show_actions
-            else []
-        )
+        tooltip_actions = [
+            utils.add_tooltip(action_d["obj"], action_d["tooltip"])
+            if "tooltip" in action_d
+            else action_d["obj"]
+            for action_name, action_d in self.actions.items()
+            if action_name not in self.actions_to_hide
+        ]
 
         tooltip_custom_actions = [
             utils.add_tooltip(action_d["obj"], action_d["tooltip"])
@@ -647,7 +645,6 @@ class Table(DataTableEnhanced):
             widget.children = ["mdi-checkbox-marked-circle-outline"]
         self._apply_filters()
 
-
     def generate_payload(self):
         output = io.BytesIO()
 
@@ -658,7 +655,6 @@ class Table(DataTableEnhanced):
         return payload
 
     def _on_click_download_btn(self, widget, event, data):
-        
         if self.payload is None:
             self.payload = self.generate_payload()
             self.download_btn.children[0].attributes = {
@@ -679,10 +675,10 @@ class Table(DataTableEnhanced):
             self.payload = None
 
     def get_download_btn(self):
-        download_btn = v.Html(# type: ignore
+        download_btn = v.Html(  # type: ignore
             tag="a",
             children=[
-                v.Html(# type: ignore
+                v.Html(  # type: ignore
                     tag="i",
                     attributes={
                         "class": "mdi mdi-arrow-down-thick",

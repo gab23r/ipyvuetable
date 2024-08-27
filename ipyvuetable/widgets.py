@@ -27,7 +27,7 @@ class VirtualAutocomplete(v.Content):
             v_bind="menus.attrs",
         )
         kwargs["show_select"] = True
-        kwargs["show_actions"] = False
+        kwargs["actions_to_hide"] = False
         self.table_select = Table(df=df, **kwargs)
         self.menu = v.Menu(
             close_on_content_click=False,

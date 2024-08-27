@@ -28,7 +28,6 @@ EditingTable(
     df = df, 
     title = 'My table', 
     
-    show_actions= True,
     show_filters=True,
     columns_to_hide = ['id'],
     
