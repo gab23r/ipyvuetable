@@ -1,5 +1,5 @@
 import datetime
-from typing import Any
+from typing import Any, Literal
 
 import ipyvuetify as v
 import polars as pl
@@ -32,6 +32,7 @@ class EditingTable(Table):
         self.save_btn = v.Btn(children=["Save"], color="blue darken-1")
 
         # instantiate the dialog widgets on demand
+        self.dialoag_mode: Literal["Edit", "MultiEdit", "Create"]
         self.dialog_widgets: dict[str, DialogWidget] = {}
         self.dialog_values: dict[str, Any] = {}
         self.hide_dialog_keys = hide_dialog_keys
@@ -53,7 +54,8 @@ class EditingTable(Table):
 
     def _on_click_edit_item_btn(self, widget, event, data):
         self.dialog_values = {}
-        for col, values in self.df_selected.collect().to_dict(as_series=False).items():
+        selected = self.df_selected.collect()
+        for col, values in selected.to_dict(as_series=False).items():
             if col == self.row_nr:
                 self.dialog_values[col] = values
             elif (
@@ -62,16 +64,16 @@ class EditingTable(Table):
                 and values[0] is not None
             ):
                 self.dialog_values[col] = values[0]
-        self._show_dialog()
+        self._show_dialog("MultiEdit" if len(selected) > 1 else "Edit")
 
     def _on_click_new_item_btn(self, widget, event, data):
         self.dialog_values = self.default_dialog_values
-        self._show_dialog()
+        self._show_dialog("Create")
 
     def _on_click_duplicate_item_btn(self, widget, event, data):
         self.dialog_values = self.df_selected.collect().to_dicts()[0]
         del self.dialog_values[self.row_nr]
-        self._show_dialog()
+        self._show_dialog("Create")
 
     def _on_click_delete_btn(self, *args):
         self.df = self.df.join(self.df_selected, how="anti", on=self.row_nr)
@@ -153,11 +155,12 @@ class EditingTable(Table):
                 ),
                 how="cross",
             )
-            .pipe(
-                lambda d: d.select(
-                    [c for c in self.df.collect_schema().names() if c in d.columns]
-                )
-            )
+            .select([*self.schema.keys(), self.row_nr])
+            # .pipe(
+            #     lambda d: d.select(
+            #         [c for c in self.df.collect_schema().names() if c in d.columns]
+            #     )
+            # )
         )
         self.previous_items = self.df_selected.collect().rows_by_key(
             self.item_key, unique=True, named=True
@@ -237,8 +240,10 @@ class EditingTable(Table):
     def get_default_new_item(self) -> dict[str, Any]:
         return {}
 
-    def _show_dialog(self):
+    def _show_dialog(self, dialoag_mode: Literal["Edit", "MultiEdit", "Create"]):
         # init the dialog widget the first time
+
+        self.dialoag_mode = dialoag_mode
         if not self.dialog_widgets:
             self.dialog_widgets = self._get_dialog_widgets()
             self.dialog_widgets_container.children = list(self.dialog_widgets.values())

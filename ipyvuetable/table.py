@@ -1,7 +1,7 @@
 import base64
 from functools import reduce
 import io
-from typing import Any
+from typing import Any, Literal
 
 import ipyvuetify as v
 import ipywidgets as ipw
@@ -98,7 +98,7 @@ class Table(DataTableEnhanced):
         item_key: str | None = None,
         columns_repr: dict[str, pl.LazyFrame] = {},
         columns_to_hide: list[str] = [],
-        actions_to_hide: list = [],
+        actions_to_hide: list[str] | Literal["*"] = [],
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -500,7 +500,7 @@ class Table(DataTableEnhanced):
             if "tooltip" in action_d
             else action_d["obj"]
             for action_name, action_d in self.actions.items()
-            if action_name not in self.actions_to_hide
+            if self.actions_to_hide != "*" and action_name not in self.actions_to_hide
         ]
 
         tooltip_custom_actions = [

@@ -27,7 +27,7 @@ class FilterCombobox(Filter):
         )
         self.filter_obj = ipyvuetable.Table(
             item_key=self.name + "__key",
-            actions_to_hide=False,
+            actions_to_hide="*",
             show_select=True,
             show_filters=False,
             columns_to_hide=[self.name + "__key"],
