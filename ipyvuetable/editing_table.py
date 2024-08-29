@@ -270,7 +270,7 @@ class EditingTable(Table):
         actions = super()._get_actions()
 
         upload_btn = self.get_upload_btn()
-        actions["upload_btn"] = {
+        actions["upload"] = {
             "obj": upload_btn,
             "tooltip": "Upload a new table",
         }
