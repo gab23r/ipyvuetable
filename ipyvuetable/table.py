@@ -337,7 +337,7 @@ class Table(DataTableEnhanced):
         if self.filter_on_selected:
             self._apply_filters()
 
-    def _update_df(self, df):
+    def _update_df(self, df: pl.LazyFrame):
         # row_nr will be generated on the fly and should not be present at init
         df = df.select(pl.exclude(self.row_nr))
 
@@ -366,8 +366,9 @@ class Table(DataTableEnhanced):
                     pl.col(self.item_key).is_in(self.selected_keys)
                 )
                 self.v_model = (
-                    df_selected.pipe(self.jsonify)
+                    df_selected.lazy().pipe(self.jsonify)
                     .pipe(self.apply_custom_repr)
+                    .collect()
                     .to_dicts()
                 )
                 self.selected_keys = df_selected[self.item_key].to_list()
