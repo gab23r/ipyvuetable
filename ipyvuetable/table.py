@@ -178,10 +178,15 @@ class Table(DataTableEnhanced):
         self.selected_indices: set[int] = set()
         self.last_selected_index: int = -1
 
+        # v_slots not not work properly with ipyvuetity table
+        # to be able to add extra elements beloz the table
+        # we use bottom_widget
+        self.bottom_widget = v.Col()
         # ipyevents only works with ipywidgets not ipyvuetify
         # if you want to activate ipyevents features, use the `ui` attribute
         # https://github.com/widgetti/ipyvuetify/issues/216
-        self.ui = ipw.VBox(children=[self])
+        
+        self.ui = ipw.VBox(children=[self, self.bottom_widget])
 
         ipw.jslink(
             (self.columns_to_display_search, "v_model"),
