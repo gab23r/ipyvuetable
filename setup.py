@@ -5,12 +5,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="ipyvuetable",
-    version="0.7.12",
+    version="0.7.14",
     author="Gabriel Robin",
     description="Table widget for Jupyter Notebook and JupyterLab",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.airbus.corp/Airbus/ipyvuetable",
+    url="https://github.com/gab23r/ipyvuetable",
     packages=setuptools.find_packages(),
     install_requires=["ipyvuetify", "polars"],
     extras_require={

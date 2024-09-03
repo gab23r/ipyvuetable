@@ -366,7 +366,8 @@ class Table(DataTableEnhanced):
                     pl.col(self.item_key).is_in(self.selected_keys)
                 )
                 self.v_model = (
-                    df_selected.lazy().pipe(self.jsonify)
+                    df_selected.lazy()
+                    .pipe(self.jsonify)
                     .pipe(self.apply_custom_repr)
                     .collect()
                     .to_dicts()
@@ -446,13 +447,13 @@ class Table(DataTableEnhanced):
         return df_paginated
 
     def jsonify(self, df: pl.LazyFrame) -> pl.LazyFrame:
-        df = df.with_columns(
-            pl.col(pl.DATETIME_DTYPES)
-            .exclude("^*__key$")
-            .dt.strftime("%Y-%m-%d %H:%M:%S"),
-            pl.col(pl.Date).exclude("^*__key$").dt.strftime("%Y-%m-%d"),
-        ).pipe(utils.duration_to_string)
-
+        df = (
+            df
+            .with_columns(pl.selectors.datetime().cast(pl.String))
+            .with_columns(pl.selectors.time().cast(pl.String))
+            .with_columns(pl.selectors.date().cast(pl.String))
+            .pipe(utils.duration_to_string)
+        )
         return df
 
     def apply_custom_repr(self, df: pl.LazyFrame) -> pl.LazyFrame:
