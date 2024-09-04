@@ -331,7 +331,7 @@ class EditingTable(Table):
                 }
             ],
         )
-    
+
         def _menu_change(change):
             if not change["new"]:  # Menu is close
                 if dfs := self.upload_btn.load_dataframes():
@@ -343,7 +343,7 @@ class EditingTable(Table):
         menu.observe(_menu_change, "v_model")
 
         return menu
-    
+
     def _update_action_status(self):
         super()._update_action_status()
         self.actions["delete"]["obj"].disabled = self.nb_selected < 1

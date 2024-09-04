@@ -3,19 +3,18 @@ import ipyvuetify as v
 from polars.type_aliases import TimeUnit
 import polars as pl
 
+
 def string_to_duration(df: pl.LazyFrame) -> pl.LazyFrame:
-    """From "07:45:00" (pl.String) to pl.Duration """
+    """From "07:45:00" (pl.String) to pl.Duration"""
     duration_expr = pl.col.opening_time.str.split_exact(":", 2)
     hours = duration_expr.struct[0]
     minutes = duration_expr.struct[1]
     seconds = duration_expr.struct[2]
 
-    return (
-        df
-        .with_columns(
-            duration=pl.duration(hours=hours, minutes=minutes, seconds=seconds),
-        )
+    return df.with_columns(
+        duration=pl.duration(hours=hours, minutes=minutes, seconds=seconds),
     )
+
 
 def duration_to_string(df: pl.LazyFrame) -> pl.LazyFrame:
     """
@@ -24,9 +23,7 @@ def duration_to_string(df: pl.LazyFrame) -> pl.LazyFrame:
     """
     duration_cols = pl.selectors.expand_selector(
         df,
-        pl.selectors.by_dtype(
-            [pl.Duration(time_unit=tu) for tu in TimeUnit.__args__]
-        ),
+        pl.selectors.by_dtype([pl.Duration(time_unit=tu) for tu in TimeUnit.__args__]),
     )
 
     duration_repr_exprs = []
@@ -55,7 +52,7 @@ def add_tooltip(obj, str_tooltip):
     )
 
 
-class IconAlert(v.VuetifyTemplate): # type: ignore
+class IconAlert(v.VuetifyTemplate):  # type: ignore
     """
     custom icon that throw an alert when click
     Only feasible with VuetifyTemplate
@@ -88,7 +85,7 @@ class IconAlert(v.VuetifyTemplate): # type: ignore
         self.str_alert = str_alert
         self.str_icon = str_icon
         self.customized_on_click = customized_on_click
-        v.VuetifyTemplate.__init__(self, *args, **kwargs) # type: ignore
+        v.VuetifyTemplate.__init__(self, *args, **kwargs)  # type: ignore
 
     @traitlets.default("template")
     def _template(self):

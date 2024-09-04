@@ -185,7 +185,7 @@ class Table(DataTableEnhanced):
         # ipyevents only works with ipywidgets not ipyvuetify
         # if you want to activate ipyevents features, use the `ui` attribute
         # https://github.com/widgetti/ipyvuetify/issues/216
-        
+
         self.ui = ipw.VBox(children=[self, self.bottom_widget])
 
         ipw.jslink(
@@ -453,8 +453,7 @@ class Table(DataTableEnhanced):
 
     def jsonify(self, df: pl.LazyFrame) -> pl.LazyFrame:
         df = (
-            df
-            .with_columns(pl.selectors.datetime().cast(pl.String))
+            df.with_columns(pl.selectors.datetime().cast(pl.String))
             .with_columns(pl.selectors.time().cast(pl.String))
             .with_columns(pl.selectors.date().cast(pl.String))
             .pipe(utils.duration_to_string)
