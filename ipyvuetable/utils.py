@@ -5,7 +5,9 @@ import polars as pl
 
 
 def string_to_duration(df: pl.LazyFrame) -> pl.LazyFrame:
-    """From "07:45:00" (pl.String) to pl.Duration"""
+    """
+    From "07:45:00" (pl.String) to pl.Duration
+    """
     duration_expr = pl.col.opening_time.str.split_exact(":", 2)
     hours = duration_expr.struct[0]
     minutes = duration_expr.struct[1]
