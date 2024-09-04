@@ -64,7 +64,7 @@ class VirtualAutocomplete(v.Content):
             self.table_select.df.filter(
                 pl.col(self.name + "__key").is_in(pl.lit(value))
             )
-            .select(self.table_select.item_key)
+            .select(set([self.table_select.item_key, self.table_select.row_nr]))
             .collect()
             .to_dicts()
         )
