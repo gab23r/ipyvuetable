@@ -114,7 +114,7 @@ class FileInput(v.Flex):
                 case "json":
                     data = pl.read_json(bytes_data)
                 case "csv":
-                    data = pl.read_csv(bytes_data)
+                    data = pl.read_csv(bytes_data, try_parse_dates=True)
                 case "parquet":
                     data = pl.read_parquet(bytes_data)
                 case ("xlsx", "xls"):
