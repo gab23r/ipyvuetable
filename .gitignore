@@ -7,3 +7,4 @@ dist/
 build/
 *.egg-info
 ipyvuetable/.DS_Store
+.env
