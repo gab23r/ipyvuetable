@@ -1,0 +1,29 @@
+
+[project]
+name = "ipyvuetable"
+version = "0.7.17"
+description = "Table widget for Jupyter Notebook and JupyterLab"
+authors = [
+  { name = "Gabriel Robin" }
+]
+readme = "README.md"
+license = { text = "MIT" }
+dependencies = [
+  "ipyvuetify",
+  "polars"
+]
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+ipyevents = ["ipyevents"]
+
+[project.urls]
+Homepage = "https://github.com/gab23r/ipyvuetable"
+
+[tool.hatch.build]
+include = ["**/*.py", "custom.css"]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
