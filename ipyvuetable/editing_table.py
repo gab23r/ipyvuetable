@@ -155,12 +155,7 @@ class EditingTable(Table):
                 ),
                 how="cross",
             )
-            .select([*self.schema.keys(), self.row_nr])
-            # .pipe(
-            #     lambda d: d.select(
-            #         [c for c in self.df.collect_schema().names() if c in d.columns]
-            #     )
-            # )
+            .select(self.row_nr, *self.schema.keys())
         )
         self.previous_items = self.df_selected.collect().rows_by_key(
             self.item_key, unique=True, named=True
