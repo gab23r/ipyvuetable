@@ -6,6 +6,7 @@ description = "Table widget for Jupyter Notebook and JupyterLab"
 authors = [
   { name = "Gabriel Robin" }
 ]
+urls = {"Homepage" = "https://github.com/gab23r/ipyvuetable"}
 readme = "README.md"
 license = { text = "MIT" }
 dependencies = [
@@ -14,11 +15,16 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 
+[dependency-groups]
+dev = [
+    "jupyterlab>=4.3.6",
+    "ruff>=0.8.4",
+]
+
+
 [project.optional-dependencies]
 ipyevents = ["ipyevents"]
 
-[project.urls]
-Homepage = "https://github.com/gab23r/ipyvuetable"
 
 [tool.hatch.build]
 include = ["**/*.py", "custom.css"]
