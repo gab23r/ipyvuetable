@@ -10,12 +10,8 @@ class FilterSlider(Filter):
 
     def init_filter(self):
         super().init_filter()
-        self.max_field = v.TextField(
-            v_model=None, class_="pa-2", label="max", type="number"
-        )
-        self.min_field = v.TextField(
-            v_model=None, class_="pa-2", label="min", type="number"
-        )
+        self.max_field = v.TextField(v_model=None, class_="pa-2", label="max", type="number")
+        self.min_field = v.TextField(v_model=None, class_="pa-2", label="min", type="number")
         self.undo_icon = v.Icon(children=["mdi-undo-variant"], color="grey")
         self.filter_obj = v.RangeSlider(v_model=None, class_="align-center")
 
@@ -32,9 +28,7 @@ class FilterSlider(Filter):
 
         self.max_field.on_event("input", self.__on_max_change)
         self.min_field.on_event("input", self.__on_min_change)
-        self.filter_obj.observe(
-            self.__on_change_filter_obj_v_model, names="v_model", type="change"
-        )
+        self.filter_obj.observe(self.__on_change_filter_obj_v_model, names="v_model", type="change")
         self.undo_icon.on_event("click", lambda *d: self._undo())
 
     def __on_change_filter_obj_v_model(self, change):
@@ -60,9 +54,9 @@ class FilterSlider(Filter):
     def _update_mask(self):
         self.mask = (
             (
-                self.table.df.filter(
-                    pl.col(self.name).is_between(*self.filter_obj.v_model)
-                ).select(self.table.row_nr)
+                self.table.df.filter(pl.col(self.name).is_between(*self.filter_obj.v_model)).select(
+                    self.table.row_nr
+                )
             )
             if self.filter_obj.v_model
             and self.filter_obj.v_model != [self.filter_obj.min, self.filter_obj.max]
@@ -72,12 +66,8 @@ class FilterSlider(Filter):
         self.undo_icon.color = "grey" if self.mask is None else "primary"
 
     def _update_filter(self):
-        self.filter_obj.min = (
-            self.table.df.select(pl.col(self.name).min().floor()).collect().item()
-        )
-        self.filter_obj.max = (
-            self.table.df.select(pl.col(self.name).max().ceil()).collect().item()
-        )
+        self.filter_obj.min = self.table.df.select(pl.col(self.name).min().floor()).collect().item()
+        self.filter_obj.max = self.table.df.select(pl.col(self.name).max().ceil()).collect().item()
 
         if self.filter_obj.v_model is None:
             self.filter_obj.v_model = [self.filter_obj.min, self.filter_obj.max]

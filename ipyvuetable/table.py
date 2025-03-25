@@ -1,6 +1,6 @@
 import base64
-from functools import reduce
 import io
+from functools import reduce
 from typing import Any, Literal
 
 import ipyvuetify as v
@@ -17,17 +17,15 @@ import ipyvuetable.utils as utils
 from ipyvuetable.filters import (
     Filter,
     FilterCombobox,
-    FilterDateTime,
     FilterDate,
+    FilterDateTime,
     FilterListCombobox,
     FilterSlider,
 )
 
 
 class DataTableEnhanced(v.DataTable):
-    def __init__(
-        self, max_height: int | None = 500, show_filters: bool = True, **kwargs: Any
-    ):
+    def __init__(self, max_height: int | None = 500, show_filters: bool = True, **kwargs: Any):
         super().__init__(**kwargs)
         self.max_height = max_height
         self.show_filters = show_filters
@@ -66,9 +64,7 @@ class DataTableEnhanced(v.DataTable):
 
     def _on_change_items(self, *change):
         if self.max_height is not None:
-            items_per_page = (
-                int(self.items_per_page) if self.items_per_page is not None else None
-            )
+            items_per_page = int(self.items_per_page) if self.items_per_page is not None else None
             h = self._get_current_height(len(self.items[:items_per_page]))
             self.height = None if h <= self.max_height else self.max_height
 
@@ -87,7 +83,6 @@ class Table(DataTableEnhanced):
     df_search_sorted: pl.LazyFrame  # dataframe resulting of the sort
     df_paginated: pl.LazyFrame  # dataframe rendered based on the panigation
     nb_selected = t.Int(0).tag(sync=True)
-    selected_keys = []  # not trait as it can be any python object ex date
     last_selected_key = None
 
     def __init__(
@@ -122,12 +117,11 @@ class Table(DataTableEnhanced):
         self.item_key = self.row_nr if item_key is None else item_key
         self.is_select_all = False
         self.filter_on_selected = False
+        self.selected_keys = []
 
         self.toolbar_title = v.ToolbarTitle(children=[title] if title else [])
         self.filters_row = v.Html(tag="tr")  # type: ignore
-        self.unselect = v.Icon(
-            children=["mdi-close"], color="primary", disabled=True, class_="pt-1"
-        )
+        self.unselect = v.Icon(children=["mdi-close"], color="primary", disabled=True, class_="pt-1")
         self.badge = v.Badge(
             v_model=not kwargs.get("single_select", False),
             inline=True,
@@ -153,9 +147,7 @@ class Table(DataTableEnhanced):
 
         self.filters: dict[str, Filter] = {}
         self.schema: dict[str, pl.DataType] = {}
-        self.custom_actions = (
-            self._get_custom_actions()
-        )  # could be defined be subclasses
+        self.custom_actions = self._get_custom_actions()  # could be defined be subclasses
         self.payload = None  # the payload to be downloaded
         self.actions = self._get_actions()
         self.v_slots = self._get_slots()
@@ -198,12 +190,8 @@ class Table(DataTableEnhanced):
         self.actions["undo_filters"]["obj"].on_event("click", self._undo_all_filters)
         self.actions["multi_sort"]["obj"].on_event("click", self._toggle_multi_sort)
         self.observe(self.on_nb_selected, "nb_selected")
-        self.actions["select_column"]["obj"].observe(
-            self._update_columns_to_hide, "v_model"
-        )
-        self.actions["filter_on_selected"]["obj"].on_event(
-            "click", self._fiter_on_selected
-        )
+        self.actions["select_column"]["obj"].observe(self._update_columns_to_hide, "v_model")
+        self.actions["filter_on_selected"]["obj"].on_event("click", self._fiter_on_selected)
         if self.click_event:
             self.click_event.on_dom_event(self._update_event)
 
@@ -285,26 +273,18 @@ class Table(DataTableEnhanced):
         if any(row[self.row_nr] is None for row in self.v_model):
             filter_expr = (
                 pl.col(self.row_nr).is_in(
-                    [
-                        row[self.row_nr]
-                        for row in self.v_model
-                        if row[self.row_nr] is not None
-                    ]
+                    [row[self.row_nr] for row in self.v_model if row[self.row_nr] is not None]
                 )
                 | pl.col(self.row_nr).is_null()
             )
 
         else:
-            filter_expr = pl.col(self.row_nr).is_in(
-                [row[self.row_nr] for row in self.v_model]
-            )
+            filter_expr = pl.col(self.row_nr).is_in([row[self.row_nr] for row in self.v_model])
         return self.df.filter(filter_expr)
 
     def _update_schema(self, schema):
         self.schema = schema
-        self.columns_to_display_table.v_model = [
-            {"col": c} for c in schema if c not in self.columns_to_hide
-        ]
+        self.columns_to_display_table.v_model = [{"col": c} for c in schema if c not in self.columns_to_hide]
         self.columns_to_display_table.items = [{"col": c} for c in self.schema]
 
         self._update_headers()
@@ -332,9 +312,7 @@ class Table(DataTableEnhanced):
 
         # update the badge
         if not self.single_select:
-            self.badge.v_slots = [
-                {"name": "badge", "children": [str(self.nb_selected)]}
-            ]
+            self.badge.v_slots = [{"name": "badge", "children": [str(self.nb_selected)]}]
             self.badge.dot = not bool(self.nb_selected)
         self.unselect.disabled = self.nb_selected == 0
 
@@ -367,15 +345,9 @@ class Table(DataTableEnhanced):
                 self.nb_selected = 0
             else:
                 # realign row_rn
-                df_selected = eager_df.filter(
-                    pl.col(self.item_key).is_in(self.selected_keys)
-                )
+                df_selected = eager_df.filter(pl.col(self.item_key).is_in(self.selected_keys))
                 self.v_model = (
-                    df_selected.lazy()
-                    .pipe(self.jsonify)
-                    .pipe(self.apply_custom_repr)
-                    .collect()
-                    .to_dicts()
+                    df_selected.lazy().pipe(self.jsonify).pipe(self.apply_custom_repr).collect().to_dicts()
                 )
                 self.selected_keys = df_selected[self.item_key].to_list()
                 self.nb_selected = len(self.selected_keys)
@@ -416,9 +388,7 @@ class Table(DataTableEnhanced):
             if self.event.get("shiftKey") and self.last_selected_index != -1:
                 rows_in_beetween = (
                     self.df_search_sorted.filter(
-                        pl.col(self.row_nr)
-                        .is_in([self.last_selected_index, last_selected_index])
-                        .cum_sum()
+                        pl.col(self.row_nr).is_in([self.last_selected_index, last_selected_index]).cum_sum()
                         == 1
                     )
                     # exclude already selected lines
@@ -426,9 +396,7 @@ class Table(DataTableEnhanced):
                     .select(self.row_nr)
                 )
                 new_v_model = (
-                    self.jsonify(self.df.join(rows_in_beetween, on=self.row_nr))
-                    .collect()
-                    .to_dicts()
+                    self.jsonify(self.df.join(rows_in_beetween, on=self.row_nr)).collect().to_dicts()
                 )
                 self.v_model = self.v_model + new_v_model
         else:
@@ -441,9 +409,7 @@ class Table(DataTableEnhanced):
         if self.items_per_page != -1:
             index_start = int((self.page - 1) * self.items_per_page)
 
-            df_paginated = self.df_search_sorted.slice(
-                index_start, int(self.items_per_page)
-            )
+            df_paginated = self.df_search_sorted.slice(index_start, int(self.items_per_page))
         else:
             df_paginated = self.df_search_sorted
 
@@ -462,9 +428,7 @@ class Table(DataTableEnhanced):
 
     def apply_custom_repr(self, df: pl.LazyFrame) -> pl.LazyFrame:
         df = df.with_columns(
-            pl.col(pl.Boolean).replace_strict(
-                {True: "✅", False: "❌"}, return_dtype=pl.Utf8, default=None
-            ),
+            pl.col(pl.Boolean).replace_strict({True: "✅", False: "❌"}, return_dtype=pl.Utf8, default=None),
         )
 
         fill_null_repr_exprs = []
@@ -523,11 +487,7 @@ class Table(DataTableEnhanced):
                 self.toolbar_title,
                 *([v.Divider(vertical=True, class_="mx-5")] if tooltip_actions else []),
                 *tooltip_actions,
-                *(
-                    [v.Divider(vertical=True, class_="mx-5")]
-                    if tooltip_custom_actions
-                    else []
-                ),
+                *([v.Divider(vertical=True, class_="mx-5")] if tooltip_custom_actions else []),
                 *tooltip_custom_actions,
                 self.dialog,
             ],
@@ -556,11 +516,7 @@ class Table(DataTableEnhanced):
                 self.filters[col] = FilterCombobox(col, self)
 
     def _update_headers(self):
-        self.headers = [
-            {"text": c, "value": c}
-            for c in self.schema
-            if c not in self.columns_to_hide
-        ]
+        self.headers = [{"text": c, "value": c} for c in self.schema if c not in self.columns_to_hide]
 
     def _update_filters_row(self):
         if self.show_filters:
@@ -602,9 +558,7 @@ class Table(DataTableEnhanced):
 
         # apply all masks
         if masks:
-            mask = reduce(
-                lambda lhs, rhs: lhs.join(rhs, on=self.row_nr, how="semi"), masks
-            ).collect()
+            mask = reduce(lambda lhs, rhs: lhs.join(rhs, on=self.row_nr, how="semi"), masks).collect()
             search_height = mask.height
             df_search = self.df.join(mask.lazy(), on=self.row_nr, how="semi")
 

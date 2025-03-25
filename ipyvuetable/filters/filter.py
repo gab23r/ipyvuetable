@@ -22,9 +22,7 @@ class Filter:
             transition="scale-transition",
             offset_y=True,
             children=[self.card],
-            v_slots=[
-                {"name": "activator", "variable": "menus", "children": self.filter_icon}
-            ],
+            v_slots=[{"name": "activator", "variable": "menus", "children": self.filter_icon}],
         )
 
         self.menu.observe(self._update_selection, "v_model")

@@ -9,4 +9,4 @@ from ipyvuetable.table import Table
 display(HTML(f"<style>{(Path(__file__).parent / 'custom.css').read_text()}</style>"))
 
 __version__ = "0.7.16"
-__all__ = ["Table", "EditingTable"]
+__all__ = ["EditingTable", "Table"]

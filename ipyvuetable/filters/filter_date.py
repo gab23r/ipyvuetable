@@ -14,12 +14,8 @@ class FilterDate(Filter):
         super().init_filter()
         self.default_range: list[datetime.date] | None = None
 
-        self.max_field = v.TextField(
-            v_model=None, class_="pa-2", label="max", type="date"
-        )
-        self.min_field = v.TextField(
-            v_model=None, class_="pa-2", label="min", type="date"
-        )
+        self.max_field = v.TextField(v_model=None, class_="pa-2", label="max", type="date")
+        self.min_field = v.TextField(v_model=None, class_="pa-2", label="min", type="date")
         self.undo_icon = v.Icon(children=["mdi-undo-variant"], color="grey")
 
         self.card.children = [
@@ -37,9 +33,7 @@ class FilterDate(Filter):
 
     def _update_mask(self):
         if self.default_range:
-            min_date, max_date = str_to_date(
-                [self.min_field.v_model, self.max_field.v_model]
-            )
+            min_date, max_date = str_to_date([self.min_field.v_model, self.max_field.v_model])
 
             if (
                 min_date
@@ -60,24 +54,20 @@ class FilterDate(Filter):
         self.undo_icon.color = "grey"
 
     def _update_filter(self):
-        min = self.table.df.select(self.name).min().collect().item()
-        max = self.table.df.select(self.name).max().collect().item()
+        min_ = self.table.df.select(self.name).min().collect().item()
+        max_ = self.table.df.select(self.name).max().collect().item()
 
-        self.default_range = [min, max] if min is not None else None
+        self.default_range = [min_, max_] if min is not None else None
 
         # set default values if needed
         if self.min_field.v_model is None and self.max_field.v_model is None:
             if self.default_range:
-                self.min_field.v_model, self.max_field.v_model = date_to_str(
-                    self.default_range
-                )
+                self.min_field.v_model, self.max_field.v_model = date_to_str(self.default_range)
 
     def _undo(self):
         super()._undo()
         if self.default_range:
-            self.min_field.v_model, self.max_field.v_model = date_to_str(
-                self.default_range
-            )
+            self.min_field.v_model, self.max_field.v_model = date_to_str(self.default_range)
         else:
             self.min_field.v_model = self.max_field.v_model = None
 

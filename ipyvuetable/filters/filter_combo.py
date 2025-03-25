@@ -22,9 +22,7 @@ class FilterCombobox(Filter):
             hide_details=True,
             class_="pa-2",
         )
-        self.undo_icon = v.Icon(
-            children=["mdi-filter-remove"], color="grey", class_="mx-1"
-        )
+        self.undo_icon = v.Icon(children=["mdi-filter-remove"], color="grey", class_="mx-1")
         self.filter_obj = ipyvuetable.Table(
             item_key=self.name + "__key",
             actions_to_hide="*",
@@ -111,15 +109,11 @@ class FilterCombobox(Filter):
             ).select(  # left to keep the order
                 [
                     pl.col(self.name).name.suffix("__key"),
-                    pl.col(self.name + "__repr")
-                    .fill_null(pl.col(self.name))
-                    .alias(self.name),
+                    pl.col(self.name + "__repr").fill_null(pl.col(self.name)).alias(self.name),
                 ]
             )
         else:
-            df = filter_df_sorted.select(
-                [pl.col(self.name).name.suffix("__key"), pl.col(self.name)]
-            )
+            df = filter_df_sorted.select([pl.col(self.name).name.suffix("__key"), pl.col(self.name)])
         return df
 
     def _update_filter(self):
@@ -140,9 +134,7 @@ class FilterCombobox(Filter):
             self.init_filter()
 
         self.filter_obj.v_model = [
-            item
-            for item in self.filter_obj.items
-            if item[self.name + "__key"] in values
+            item for item in self.filter_obj.items if item[self.name + "__key"] in values
         ]
         self._update_mask()
 

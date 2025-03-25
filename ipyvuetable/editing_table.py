@@ -10,20 +10,17 @@ import ipyvuetable.utils as utils
 from ipyvuetable.table import Table
 from ipyvuetable.widgets import FileInput, VirtualAutocomplete
 
-
 DialogWidget = VuetifyWidget | FileInput | VirtualAutocomplete
 
 
 class EditingTable(Table):
-    default_dialog_values: dict[str, Any] = {}
-    new_items: list[dict[str, Any]] = t.List(
-        t.Dict({}), default_value=[{}], allow_none=True
-    ).tag(sync=True)  # type: ignore
+    new_items: list[dict[str, Any]] = t.List(t.Dict({}), default_value=[{}], allow_none=True).tag(sync=True)  # type: ignore
 
     def __init__(
         self,
         df: pl.LazyFrame = pl.LazyFrame(),
         hide_dialog_keys: list[str] = [],
+        default_dialog_values: dict[str, Any] = {},
         *args: Any,
         **kwargs: Any,
     ):
@@ -32,6 +29,7 @@ class EditingTable(Table):
         self.save_btn = v.Btn(children=["Save"], color="blue darken-1")
 
         # instantiate the dialog widgets on demand
+        self.default_dialog_values = default_dialog_values
         self.dialoag_mode: Literal["Edit", "MultiEdit", "Create"]
         self.dialog_widgets: dict[str, DialogWidget] = {}
         self.dialog_values: dict[str, Any] = {}
@@ -58,11 +56,7 @@ class EditingTable(Table):
         for col, values in selected.to_dict(as_series=False).items():
             if col == self.row_nr:
                 self.dialog_values[col] = values
-            elif (
-                len(values) == 1
-                or len(set(str(v) for v in values)) == 1
-                and values[0] is not None
-            ):
+            elif len(values) == 1 or (len(set(str(v) for v in values)) == 1 and values[0] is not None):
                 self.dialog_values[col] = values[0]
         self._show_dialog("MultiEdit" if len(selected) > 1 else "Edit")
 
@@ -88,8 +82,7 @@ class EditingTable(Table):
             for c, widget in self.dialog_widgets.items()
             if indexes is None  # In case of click_new
             or len(indexes) == 1  # In case of click_edit one element
-            or len(indexes) > 1
-            and widget.v_model is not None  # In case of click_edit multiple elements
+            or (len(indexes) > 1 and widget.v_model is not None)  # In case of click_edit multiple elements
         }
         for c, value in new_item.items():
             dtype = self.schema[c]
@@ -119,9 +112,7 @@ class EditingTable(Table):
                     try:
                         hours, minutes, *seconds = value.split(":")
                         seconds = int(seconds[0]) if seconds else 0
-                        duration = datetime.timedelta(
-                            hours=int(hours), minutes=int(minutes), seconds=seconds
-                        )
+                        duration = datetime.timedelta(hours=int(hours), minutes=int(minutes), seconds=seconds)
                         print(duration)
                     except ValueError:
                         duration = None
@@ -136,9 +127,7 @@ class EditingTable(Table):
         # we use default_new_item only for creation not edition
         if indexes is None:
             default_new_item = {
-                k: v
-                for k, v in self.get_default_new_item().items()
-                if new_item.get(k) is None
+                k: v for k, v in self.get_default_new_item().items() if new_item.get(k) is None
             }
         else:
             default_new_item = {}
@@ -157,21 +146,17 @@ class EditingTable(Table):
             )
             .select(self.row_nr, *self.schema.keys())
         )
-        self.previous_items = self.df_selected.collect().rows_by_key(
-            self.item_key, unique=True, named=True
-        )
+        self.previous_items = self.df_selected.collect().rows_by_key(self.item_key, unique=True, named=True)
         self.new_items = new_item_df.pipe(self.jsonify).collect().to_dicts()
 
         self.df_updated_rows = new_item_df.update(
-            new_item_df.cast(
-                {k: v for k, v in self.schema.items() if k in new_item}
-            ).cast({self.row_nr: pl.UInt32})
+            new_item_df.cast({k: v for k, v in self.schema.items() if k in new_item}).cast(
+                {self.row_nr: pl.UInt32}
+            )
         )
 
         if indexes is not None:
-            self.df = self.df.update(
-                self.df_updated_rows, on=self.row_nr, include_nulls=True
-            )
+            self.df = self.df.update(self.df_updated_rows, on=self.row_nr, include_nulls=True)
         else:
             self.df = pl.concat([self.df, self.df_updated_rows])
 
@@ -287,9 +272,7 @@ class EditingTable(Table):
         }
 
         actions["duplicate"] = {
-            "obj": v.Icon(
-                children=["mdi-content-copy"], color="primary", disabled=True
-            ),
+            "obj": v.Icon(children=["mdi-content-copy"], color="primary", disabled=True),
             "tooltip": "Duplicate item",
         }
 

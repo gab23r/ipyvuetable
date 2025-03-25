@@ -2,9 +2,9 @@ from typing import Any, cast
 
 import ipyvuetify as v
 import polars as pl
+from ipyvuetify.extra.file_input import FileInput as _FileInput
 
 from ipyvuetable.table import Table
-from ipyvuetify.extra.file_input import FileInput as _FileInput
 
 
 class VirtualAutocomplete(v.Content):
@@ -48,9 +48,7 @@ class VirtualAutocomplete(v.Content):
 
     @property
     def v_model(self):
-        v_model: list[Any] | None = [
-            item[self.table_select.item_key] for item in self.table_select.v_model
-        ]
+        v_model: list[Any] | None = [item[self.table_select.item_key] for item in self.table_select.v_model]
         if self.table_select.single_select:
             if v_model:
                 v_model = v_model[0]
@@ -61,9 +59,7 @@ class VirtualAutocomplete(v.Content):
     @v_model.setter
     def v_model(self, value):
         self.table_select.v_model = (
-            self.table_select.df.filter(
-                pl.col(self.name + "__key").is_in(pl.lit(value))
-            )
+            self.table_select.df.filter(pl.col(self.name + "__key").is_in(pl.lit(value)))
             .select(set([self.table_select.item_key, self.table_select.row_nr]))
             .collect()
             .to_dicts()
@@ -75,11 +71,7 @@ class VirtualAutocomplete(v.Content):
             self._update_text_field()
 
     def _update_text_field(self):
-        values = (
-            self.table_select.df_selected.select(self.name)
-            .collect()[self.name]
-            .to_list()
-        )
+        values = self.table_select.df_selected.select(self.name).collect()[self.name].to_list()
         self.textfield.v_model = ", ".join(values) if values else None
 
 
@@ -89,9 +81,7 @@ class FileInput(v.Flex):
         self.file_input = _FileInput()
         super().__init__(
             children=[
-                v.Html(tag="div", children=[name] if name else [])  # type: ignore
-            ]
-            + [
+                v.Html(tag="div", children=[name] if name else []),
                 self.file_input,
             ],
             **kwargs,
