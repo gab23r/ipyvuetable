@@ -16,33 +16,6 @@ def string_to_duration(df: pl.LazyFrame) -> pl.LazyFrame:
     )
 
 
-def duration_to_string(df: pl.LazyFrame) -> pl.LazyFrame:
-    """
-    Duration to string is not manage by polars
-    https://github.com/pola-rs/polars/issues/7174
-    """
-    duration_cols = pl.selectors.expand_selector(
-        df,
-        pl.selectors.by_dtype([pl.Duration(time_unit=tu) for tu in TimeUnit.__args__]),
-    )
-
-    duration_repr_exprs = []
-    for col in duration_cols:
-        total_seconds = pl.col(col).dt.total_seconds()
-        duration_repr_exprs.append(
-            pl.format(
-                "{}:{}:{}",
-                (total_seconds // 3600).cast(pl.String).str.pad_start(2, "0"),
-                (total_seconds % 3600 // 60).cast(pl.String).str.pad_start(2, "0"),
-                (total_seconds % 60).cast(pl.String).str.pad_start(2, "0"),
-            ).alias(col)
-        )
-
-    df = df.with_columns(duration_repr_exprs)
-
-    return df
-
-
 def add_tooltip(obj, str_tooltip):
     obj.v_on = "tooltip.on"
     return v.Tooltip(

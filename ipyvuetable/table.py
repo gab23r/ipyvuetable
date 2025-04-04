@@ -422,7 +422,7 @@ class Table(DataTableEnhanced):
             df.with_columns(pl.selectors.datetime().cast(pl.String))
             .with_columns(pl.selectors.time().cast(pl.String))
             .with_columns(pl.selectors.date().cast(pl.String))
-            .pipe(utils.duration_to_string)
+            .with_columns(pl.selectors.duration().dt.to_string("polars"))
         )
         return df
 
@@ -608,7 +608,7 @@ class Table(DataTableEnhanced):
     def generate_payload(self):
         output = io.BytesIO()
 
-        utils.duration_to_string(self.df.drop(self.row_nr)).collect().write_csv(output)
+        self.df.drop(self.row_nr).with_columns(pl.selectors.duration().dt.to_string("polars")).collect().write_csv(output)
         b64 = base64.b64encode(output.getvalue())
         payload = b64.decode()
 

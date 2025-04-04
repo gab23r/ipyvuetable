@@ -144,12 +144,11 @@ class EditingTable(Table):
                 ),
                 how="cross",
             )
-            .select(self.row_nr, *self.schema.keys())
         )
         self.previous_items = self.df_selected.collect().rows_by_key(self.item_key, unique=True, named=True)
         self.new_items = new_item_df.pipe(self.jsonify).collect().to_dicts()
 
-        self.df_updated_rows = new_item_df.update(
+        self.df_updated_rows = (
             new_item_df.cast({k: v for k, v in self.schema.items() if k in new_item}).cast(
                 {self.row_nr: pl.UInt32}
             )
