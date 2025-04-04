@@ -531,7 +531,7 @@ wheels = [
 
 [[package]]
 name = "ipyvuetable"
-version = "0.7.18"
+version = "0.7.19"
 source = { editable = "." }
 dependencies = [
     { name = "ipyvuetify" },
