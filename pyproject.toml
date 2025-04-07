@@ -1,7 +1,7 @@
 
 [project]
 name = "ipyvuetable"
-version = "0.7.19"
+version = "0.7.20"
 description = "Table widget for Jupyter Notebook and JupyterLab"
 authors = [
   { name = "Gabriel Robin" }

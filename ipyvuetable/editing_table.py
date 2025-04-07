@@ -113,7 +113,6 @@ class EditingTable(Table):
                         hours, minutes, *seconds = value.split(":")
                         seconds = int(seconds[0]) if seconds else 0
                         duration = datetime.timedelta(hours=int(hours), minutes=int(minutes), seconds=seconds)
-                        print(duration)
                     except ValueError:
                         duration = None
                     new_item[c] = duration
@@ -132,7 +131,7 @@ class EditingTable(Table):
         else:
             default_new_item = {}
 
-        new_item_df = (
+        self.df_updated_rows = (
             pl.LazyFrame([new_item | default_new_item])
             # .with_columns(**default_new_item)
             .cast({k: v for k, v in self.schema.items() if k in new_item})
@@ -146,18 +145,16 @@ class EditingTable(Table):
             )
         )
         self.previous_items = self.df_selected.collect().rows_by_key(self.item_key, unique=True, named=True)
-        self.new_items = new_item_df.pipe(self.jsonify).collect().to_dicts()
+        self.new_items = self.df_updated_rows.pipe(self.jsonify).collect().to_dicts()
 
-        self.df_updated_rows = (
-            new_item_df.cast({k: v for k, v in self.schema.items() if k in new_item}).cast(
-                {self.row_nr: pl.UInt32}
-            )
-        )
 
         if indexes is not None:
             self.df = self.df.update(self.df_updated_rows, on=self.row_nr, include_nulls=True)
         else:
-            self.df = pl.concat([self.df, self.df_updated_rows])
+            self.df = pl.concat([
+                self.df, 
+                self.df_updated_rows.select(self.row_nr, *self.schema)
+            ])
 
     def _get_dialog_widgets(self) -> dict[str, DialogWidget]:
         dialog_widgets = {}
