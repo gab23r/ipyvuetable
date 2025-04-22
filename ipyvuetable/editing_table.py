@@ -147,14 +147,10 @@ class EditingTable(Table):
         self.previous_items = self.df_selected.collect().rows_by_key(self.item_key, unique=True, named=True)
         self.new_items = self.df_updated_rows.pipe(self.jsonify).collect().to_dicts()
 
-
         if indexes is not None:
             self.df = self.df.update(self.df_updated_rows, on=self.row_nr, include_nulls=True)
         else:
-            self.df = pl.concat([
-                self.df, 
-                self.df_updated_rows.select(self.row_nr, *self.schema)
-            ])
+            self.df = pl.concat([self.df, self.df_updated_rows.select(self.row_nr, *self.schema)])
 
     def _get_dialog_widgets(self) -> dict[str, DialogWidget]:
         dialog_widgets = {}

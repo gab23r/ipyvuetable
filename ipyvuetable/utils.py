@@ -1,7 +1,6 @@
 import ipyvuetify as v
 import polars as pl
 import traitlets
-from polars.type_aliases import TimeUnit
 
 
 def string_to_duration(df: pl.LazyFrame) -> pl.LazyFrame:

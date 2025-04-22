@@ -608,7 +608,9 @@ class Table(DataTableEnhanced):
     def generate_payload(self):
         output = io.BytesIO()
 
-        self.df.drop(self.row_nr).with_columns(pl.selectors.duration().dt.to_string("polars")).collect().write_csv(output)
+        self.df.drop(self.row_nr).with_columns(
+            pl.selectors.duration().dt.to_string("polars")
+        ).collect().write_csv(output)
         b64 = base64.b64encode(output.getvalue())
         payload = b64.decode()
 

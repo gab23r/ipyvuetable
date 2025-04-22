@@ -1,0 +1,38 @@
+repos:
+-   repo: local
+    hooks:
+    -   id: ruff
+        name: ruff-format
+        entry: uv run ruff format .
+        language: system
+        types: [python]
+        exclude: ^notebooks/
+    -   id: ruff
+        name: ruff-check
+        entry: uv run ruff check . --fix
+        language: system
+        types: [python]
+        exclude: ^notebooks/
+    -   id: uv-lock
+        name: uv-lock
+        description: "Automatically run 'uv lock' on your project dependencies"
+        entry: uv lock
+        language: system
+        files: ".*pyproject\\.toml$|^uv\\.lock$"
+        pass_filenames: false
+      # pre-commit-hooks
+    -   id: trailing-whitespace-fixer
+        name: trailing-whitespace-fixer
+        entry: uv run trailing-whitespace-fixer
+        language: system
+        types: [text]
+    -   id: end-of-file-fixer
+        name: end-of-file-fixer
+        entry: uv run end-of-file-fixer
+        language: system
+        types: [text]
+    -   id: check-yaml
+        name: check-yaml
+        entry: uv run check-yaml
+        language: system
+        types: [yaml]
