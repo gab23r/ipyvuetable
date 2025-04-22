@@ -11,7 +11,8 @@ readme = "README.md"
 license = { text = "MIT" }
 dependencies = [
   "ipyvuetify",
-  "polars"
+  "polars",
+
 ]
 requires-python = ">=3.10"
 
@@ -19,6 +20,8 @@ requires-python = ">=3.10"
 dev = [
     "jupyterlab>=4.3.6",
     "ruff>=0.8.4",
+    "pre-commit>=4.2.0",
+    "pre-commit-hooks>=5.0.0",
 ]
 
 
