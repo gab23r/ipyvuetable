@@ -1,4 +1,4 @@
-import importlib
+import importlib.metadata
 from pathlib import Path
 
 from IPython.display import HTML, display

@@ -87,7 +87,7 @@ class Table(DataTableEnhanced):
 
     def __init__(
         self,
-        df: pl.LazyFrame = pl.LazyFrame(),
+        df: pl.LazyFrame | pl.DataFrame = pl.LazyFrame(),
         *,
         title: str | None = None,
         item_key: str | None = None,
@@ -96,29 +96,14 @@ class Table(DataTableEnhanced):
         actions_to_hide: list[str] | Literal["*"] = [],
         **kwargs: Any,
     ):
-        super().__init__(**kwargs)
         self.title = title
         self.columns_repr = columns_repr
         self.actions_to_hide = actions_to_hide
         self.columns_to_hide = columns_to_hide
 
-        self.page = kwargs.pop("page", 1)
-        self.dense = kwargs.pop("dense", True)
-        self.footer_props = {
-            "items-per-page-options": [5, 10, 15, 25, 50, 100, -1],
-            "show-first-last-page": True,
-        } | kwargs.pop("footer_props", {})
-
-        self.style_ = kwargs.pop("style_", "white-space: nowrap")
-        self.add_class("ipyvuetable")
-        self.v_model: list[dict[str, Any]] = []
-
-        self.row_nr = "__row_nr__"
-        self.item_key = self.row_nr if item_key is None else item_key
-        self.is_select_all = False
-        self.filter_on_selected = False
-        self.selected_keys = []
-
+        # The widgets of the slots are created before the DataTable model so that v_slots is part of its
+        # initial state. Slots set after the table is rendered are never displayed, and some frontends
+        # (e.g. VS Code) can render the table before receiving later updates: the toolbar would go missing.
         self.toolbar_title = v.ToolbarTitle(children=[title] if title else [])
         self.filters_row = v.Html(tag="tr")  # type: ignore
         self.unselect = v.Icon(children=["mdi-close"], color="primary", disabled=True, class_="pt-1")
@@ -150,7 +135,24 @@ class Table(DataTableEnhanced):
         self.custom_actions = self._get_custom_actions()  # could be defined be subclasses
         self.payload = None  # the payload to be downloaded
         self.actions = self._get_actions()
-        self.v_slots = self._get_slots()
+        super().__init__(v_slots=self._get_slots(), **kwargs)
+
+        self.page = kwargs.pop("page", 1)
+        self.dense = kwargs.pop("dense", True)
+        self.footer_props = {
+            "items-per-page-options": [5, 10, 15, 25, 50, 100, -1],
+            "show-first-last-page": True,
+        } | kwargs.pop("footer_props", {})
+
+        self.style_ = kwargs.pop("style_", "white-space: nowrap")
+        self.add_class("ipyvuetable")
+        self.v_model: list[dict[str, Any]] = []
+
+        self.row_nr = "__row_nr__"
+        self.item_key = self.row_nr if item_key is None else item_key
+        self.is_select_all = False
+        self.filter_on_selected = False
+        self.selected_keys = []
 
         self._update_df(df)
 
@@ -169,6 +171,7 @@ class Table(DataTableEnhanced):
         )
         self.selected_indices: set[int] = set()
         self.last_selected_index: int = -1
+        self._extending_selection = False  # True while the shift click adds rows to v_model
 
         # v_slots not not work properly with ipyvuetity table
         # to be able to add extra elements beloz the table
@@ -185,7 +188,8 @@ class Table(DataTableEnhanced):
             (self.columns_to_display_table, "search"),
         )
 
-        self.on_event("input", self._on_input_table)
+        # observe v_model rather than the "input" event so that programmatic selections are handled too
+        self.observe(self._on_input_table, "v_model")
         self.unselect.on_event("click", self._on_click_unselect)
         self.actions["undo_filters"]["obj"].on_event("click", self._undo_all_filters)
         self.actions["multi_sort"]["obj"].on_event("click", self._toggle_multi_sort)
@@ -264,7 +268,7 @@ class Table(DataTableEnhanced):
         return self._df
 
     @df.setter
-    def df(self, df: pl.LazyFrame) -> None:
+    def df(self, df: pl.LazyFrame | pl.DataFrame) -> None:
         df = self.on_df_change(df)
         self._update_df(df)
 
@@ -291,22 +295,34 @@ class Table(DataTableEnhanced):
         self._update_filters()
         self._update_filters_row()
 
-    def _on_input_table(self, *args):
-        previous_selected_keys = self.selected_keys or []
+    def _get_selected_keys(self) -> list:
         selected_rows = [i[self.row_nr] for i in self.v_model]
-        self.selected_keys = (
+        return (
             self.df.filter(pl.col(self.row_nr).is_in(selected_rows))
             .select(self.item_key)
             .collect()
             .to_series()
             .to_list()
         )
+
+    def _on_input_table(self, *args):
+        if self._extending_selection:
+            # v_model is being extended below, the bookkeeping is done once on the final selection
+            return
+
+        previous_selected_keys = self.selected_keys or []
+        self.selected_keys = self._get_selected_keys()
         self.last_selected_key = next(
             (k for k in self.selected_keys if k not in previous_selected_keys), None
         )
         # if ipyevents is installed
-        if Event is not None:
-            self._manage_shift_click()
+        if Event is not None and (rows_in_between := self._manage_shift_click()):
+            self._extending_selection = True
+            try:
+                self.v_model = self.v_model + rows_in_between
+            finally:
+                self._extending_selection = False
+            self.selected_keys = self._get_selected_keys()
 
         self.nb_selected = len(self.v_model)
 
@@ -320,9 +336,9 @@ class Table(DataTableEnhanced):
         if self.filter_on_selected:
             self._apply_filters()
 
-    def _update_df(self, df: pl.LazyFrame):
+    def _update_df(self, df: pl.LazyFrame | pl.DataFrame):
         # row_nr will be generated on the fly and should not be present at init
-        df = df.select(pl.exclude(self.row_nr))
+        df = df.lazy().select(pl.exclude(self.row_nr))
 
         schema = df.collect_schema()
         if schema != self.schema:
@@ -331,7 +347,7 @@ class Table(DataTableEnhanced):
         # df will be modify over and over
         # so it's a good thing to cache the result when df change
         # Moreover we need to have the height of df
-        eager_df = df.with_row_count(self.row_nr).collect()
+        eager_df = df.with_row_index(self.row_nr).collect()
 
         self.df_height = eager_df.height
         self._df = eager_df.lazy()
@@ -345,7 +361,10 @@ class Table(DataTableEnhanced):
                 self.nb_selected = 0
             else:
                 # realign row_rn
-                df_selected = eager_df.filter(pl.col(self.item_key).is_in(self.selected_keys))
+                is_selected = pl.col(self.item_key).is_in([k for k in self.selected_keys if k is not None])
+                if None in self.selected_keys:
+                    is_selected |= pl.col(self.item_key).is_null()
+                df_selected = eager_df.filter(is_selected)
                 self.v_model = (
                     df_selected.lazy().pipe(self.jsonify).pipe(self.apply_custom_repr).collect().to_dicts()
                 )
@@ -378,7 +397,8 @@ class Table(DataTableEnhanced):
     def _on_click_unselect(self, *args):
         self.v_model = []
 
-    def _manage_shift_click(self):
+    def _manage_shift_click(self) -> list[dict[str, Any]]:
+        """return the rows to add to v_model after a shift click"""
         selected_indices = set(i[self.row_nr] for i in self.v_model)
         new_selected_indices = selected_indices - self.selected_indices
 
@@ -396,14 +416,19 @@ class Table(DataTableEnhanced):
                     .select(self.row_nr)
                 )
                 new_v_model = (
-                    self.jsonify(self.df.join(rows_in_beetween, on=self.row_nr)).collect().to_dicts()
+                    self.jsonify(self.df.join(rows_in_beetween, on=self.row_nr, maintain_order="right"))
+                    .collect()
+                    .to_dicts()
                 )
-                self.v_model = self.v_model + new_v_model
+                self.selected_indices = selected_indices | {row[self.row_nr] for row in new_v_model}
+                self.last_selected_index = last_selected_index
+                return new_v_model
         else:
             last_selected_index = -1
 
         self.selected_indices = selected_indices
         self.last_selected_index = last_selected_index
+        return []
 
     def _get_df_paginated(self):
         if self.items_per_page != -1:
@@ -435,7 +460,7 @@ class Table(DataTableEnhanced):
         for c, df_repr in self.columns_repr.items():
             if c in self.schema:
                 if not isinstance(self.schema[c], pl.List):
-                    df = df.join(df_repr, on=c, how="left")
+                    df = df.join(df_repr, on=c, how="left", maintain_order="left")
                     fill_null_repr_exprs.append(
                         pl.col(c + "__repr").fill_null(pl.col(c).cast(pl.Utf8)).alias(c)
                     )
@@ -448,7 +473,7 @@ class Table(DataTableEnhanced):
         self._update_df_search_sorted()
 
     def _update_df_search_sorted(self) -> None:
-        if self.sort_by and self.sort_desc and all(c in self.df for c in self.sort_by):
+        if self.sort_by and self.sort_desc and all(c in self.df.collect_schema() for c in self.sort_by):
             self.df_search_sorted = self.df_search.sort(
                 self.sort_by,
                 descending=self.sort_desc,
@@ -558,9 +583,11 @@ class Table(DataTableEnhanced):
 
         # apply all masks
         if masks:
-            mask = reduce(lambda lhs, rhs: lhs.join(rhs, on=self.row_nr, how="semi"), masks).collect()
+            mask = reduce(
+                lambda lhs, rhs: lhs.join(rhs, on=self.row_nr, how="semi", maintain_order="left"), masks
+            ).collect()
             search_height = mask.height
-            df_search = self.df.join(mask.lazy(), on=self.row_nr, how="semi")
+            df_search = self.df.join(mask.lazy(), on=self.row_nr, how="semi", maintain_order="left")
 
         else:
             df_search = self.df
@@ -607,10 +634,8 @@ class Table(DataTableEnhanced):
 
     def generate_payload(self):
         output = io.BytesIO()
-
-        self.df.drop(self.row_nr).with_columns(
-            pl.selectors.duration().dt.to_string("polars")
-        ).collect().write_csv(output)
+        # parquet keeps the dtypes, including nested and duration columns
+        self.df.drop(self.row_nr).collect().write_parquet(output)
         b64 = base64.b64encode(output.getvalue())
         payload = b64.decode()
 
@@ -624,8 +649,8 @@ class Table(DataTableEnhanced):
                 "style": "font-size:24px;",
             }
             self.download_btn.attributes = {
-                "download": f"{self.title}.csv",
-                "href": f"data:text/csv;base64,{self.payload}",
+                "download": f"{self.title}.parquet",
+                "href": f"data:application/vnd.apache.parquet;base64,{self.payload}",
             }
 
         else:

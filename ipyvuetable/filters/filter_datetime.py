@@ -33,7 +33,7 @@ class FilterDateTime(Filter):
 
     def _update_mask(self):
         if self.default_range:
-            min_date, max_date = str_to_datetime([self.min_field.v_model, self.max_field.v_model])
+            min_date, max_date = [str_to_datetime(f.v_model) for f in (self.min_field, self.max_field)]
 
             if (
                 min_date
@@ -44,8 +44,11 @@ class FilterDateTime(Filter):
                     or self.default_range[1] > max_date + datetime.timedelta(days=1)
                 )
             ):
+                # the max field is a day: keep the whole day
                 self.mask = self.table.df.filter(
-                    pl.col(self.name).is_between(min_date, max_date, closed="both")
+                    pl.col(self.name).is_between(
+                        min_date, max_date + datetime.timedelta(days=1), closed="left"
+                    )
                 ).select(self.table.row_nr)
                 self.undo_icon.color = "primary"
                 return
@@ -55,28 +58,29 @@ class FilterDateTime(Filter):
 
     def _update_filter(self):
         min_ = self.table.df.select(self.name).min().collect().item()
-        max_ = self.table.df.select(self.name)._().collect().item()
+        max_ = self.table.df.select(self.name).max().collect().item()
 
-        self.default_range = [min_, max_] if min is not None else None
+        self.default_range = [min_, max_] if min_ is not None else None
 
         # set default values if needed
         if self.min_field.v_model is None and self.max_field.v_model is None:
             if self.default_range:
-                self.min_field.v_model, self.max_field.v_model = datetime_to_str(self.default_range)
+                self.min_field.v_model, self.max_field.v_model = [
+                    datetime_to_str(d) for d in self.default_range
+                ]
 
     def _undo(self):
         super()._undo()
         if self.default_range:
-            self.min_field.v_model, self.max_field.v_model = datetime_to_str(self.default_range)
+            self.min_field.v_model, self.max_field.v_model = [datetime_to_str(d) for d in self.default_range]
         else:
             self.min_field.v_model = self.max_field.v_model = None
 
 
-def datetime_to_str(list_date: list[datetime.datetime]) -> list[str]:
-    list_str = [datetime.datetime.strftime(d, "%Y-%m-%d") for d in list_date]
-    return list_str
+def datetime_to_str(date: datetime.datetime) -> str:
+    return date.strftime("%Y-%m-%d")
 
 
-def str_to_datetime(list_str: list[str]) -> list[datetime.datetime]:
-    list_date = [datetime.datetime.strptime(d, "%Y-%m-%d") for d in list_str]
-    return list_date
+def str_to_datetime(string: str | None) -> datetime.datetime | None:
+    # a cleared text field gives an empty string
+    return datetime.datetime.strptime(string, "%Y-%m-%d") if string else None

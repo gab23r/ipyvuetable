@@ -18,7 +18,7 @@ class EditingTable(Table):
 
     def __init__(
         self,
-        df: pl.LazyFrame = pl.LazyFrame(),
+        df: pl.LazyFrame | pl.DataFrame = pl.LazyFrame(),
         hide_dialog_keys: list[str] = [],
         default_dialog_values: dict[str, Any] = {},
         *args: Any,
@@ -47,9 +47,6 @@ class EditingTable(Table):
 
         self.save_btn.on_event("click", self._on_save_dialog)
 
-    def _on_input_table(self, widget, event, data):
-        super()._on_input_table()
-
     def _on_click_edit_item_btn(self, widget, event, data):
         self.dialog_values = {}
         selected = self.df_selected.collect()
@@ -70,7 +67,7 @@ class EditingTable(Table):
         self._show_dialog("Create")
 
     def _on_click_delete_btn(self, *args):
-        self.df = self.df.join(self.df_selected, how="anti", on=self.row_nr)
+        self.df = self.df.join(self.df_selected, how="anti", on=self.row_nr, maintain_order="left")
         self.v_model = []
 
     def _on_save_dialog(self, widget, event, data):
@@ -91,15 +88,15 @@ class EditingTable(Table):
             if isinstance(dtype, pl.Boolean) and indexes is None:
                 new_item[c] = value is True
             if value is not None:
-                if dtype in pl.FLOAT_DTYPES:
+                if dtype.is_float():
                     new_item[c] = float(value)
-                elif dtype in pl.NUMERIC_DTYPES:
+                elif dtype.is_numeric():
                     new_item[c] = int(value)
                 elif isinstance(dtype, pl.List):
-                    if dtype.inner in pl.NUMERIC_DTYPES:
-                        new_item[c] = [int(i) for i in value]
-                    elif dtype.inner in pl.FLOAT_DTYPES:
+                    if dtype.inner.is_float():
                         new_item[c] = [float(i) for i in value]
+                    elif dtype.inner.is_numeric():
+                        new_item[c] = [int(i) for i in value]
                     else:
                         new_item[c] = value
                 elif isinstance(dtype, pl.Datetime):
@@ -192,7 +189,7 @@ class EditingTable(Table):
                     widget = v.TextField(v_model=None, type="datetime-local")
                 elif isinstance(dtype, pl.Date):
                     widget = v.TextField(v_model=None, type="date")
-                elif dtype in pl.NUMERIC_DTYPES:
+                elif dtype.is_numeric():
                     widget = v.TextField(v_model=None, type="number")
                 else:
                     widget = v.TextField(v_model=None)

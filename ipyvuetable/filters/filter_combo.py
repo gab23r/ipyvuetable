@@ -70,7 +70,7 @@ class FilterCombobox(Filter):
         """
         other_filters = [c for c in self.table.filters if c != self.name]
         filter_values = (
-            self.table._get_df_search(filters=other_filters)[0]
+            self._explode(self.table._get_df_search(filters=other_filters)[0])
             .unique(subset=[self.name])
             .select(self.name, pl.lit(True).alias("__is_available"))
         )
@@ -80,13 +80,16 @@ class FilterCombobox(Filter):
     def _update_mask(self):
         self.mask = (
             (
-                self.table.df.join(
+                self._explode(self.table.df)
+                .join(
                     self.filter_obj.df_selected,
                     left_on=self.name,
                     right_on=self.name + "__key",
-                    join_nulls=True,
+                    nulls_equal=True,
                     how="semi",
-                ).select(pl.col(self.row_nr))
+                    maintain_order="left",
+                )
+                .select(pl.col(self.row_nr))
             )
             if self.filter_obj.v_model
             else None
@@ -95,17 +98,17 @@ class FilterCombobox(Filter):
     def _get_df(self):
         # show first options that are not already discarded by the other filter
         filter_df_sorted = (
-            self.table.df.select([self.name])
+            self._explode(self.table.df.select([self.name]))
             .unique()
             .join(self._get_filter_values(), on=self.name, how="left")
-            .sort("__is_available", nulls_last=True)
+            .sort("__is_available", nulls_last=True, maintain_order=True)
             .drop("__is_available")
         )
 
         if self.name in self.table.columns_repr:
             # remove `__repr` prefix and add `__key` suffix to the non repr column
             df = filter_df_sorted.join(
-                self.table.columns_repr[self.name], on=self.name, how="left"
+                self.table.columns_repr[self.name], on=self.name, how="left", maintain_order="left"
             ).select(  # left to keep the order
                 [
                     pl.col(self.name).name.suffix("__key"),
@@ -114,6 +117,10 @@ class FilterCombobox(Filter):
             )
         else:
             df = filter_df_sorted.select([pl.col(self.name).name.suffix("__key"), pl.col(self.name)])
+        return df
+
+    def _explode(self, df: pl.LazyFrame) -> pl.LazyFrame:
+        """one row per filterable value"""
         return df
 
     def _update_filter(self):
@@ -130,25 +137,37 @@ class FilterCombobox(Filter):
         used to pre-define the filter
         """
 
-        if not hasattr(self, "filter_obj"):
+        if not self.is_initialized:
             self.init_filter()
+            self._update_filter()
 
-        self.filter_obj.v_model = [
-            item for item in self.filter_obj.items if item[self.name + "__key"] in values
-        ]
-        self._update_mask()
+        key = pl.col(self.name + "__key")
+        is_selected = key.is_in([v for v in values if v is not None])
+        if None in values:
+            is_selected |= key.is_null()
+        # look in the whole filter df, not only in the current page of items
+        self.filter_obj.v_model = (
+            self.filter_obj.df.filter(is_selected)
+            .pipe(self.filter_obj.jsonify)
+            .pipe(self.filter_obj.apply_custom_repr)
+            .collect()
+            .to_dicts()
+        )
+        self.apply_mask()
 
         return self
 
 
 class FilterListCombobox(FilterCombobox):
+    """filter on the elements of a list column: keep rows containing any of the selected values"""
+
     def __init__(self, name, table, **kwargs):
         super().__init__(name, table, **kwargs)
 
-    def _update_mask(self):
-        ...
-        # TODO
+    def _explode(self, df: pl.LazyFrame) -> pl.LazyFrame:
+        return df.explode(self.name)
 
-    def _get_filter_values(self):
-        ...
-        # TODO
+    def _update_mask(self):
+        super()._update_mask()
+        if self.mask is not None:
+            self.mask = self.mask.unique()

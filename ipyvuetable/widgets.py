@@ -59,7 +59,9 @@ class VirtualAutocomplete(v.Content):
     @v_model.setter
     def v_model(self, value):
         self.table_select.v_model = (
-            self.table_select.df.filter(pl.col(self.name + "__key").is_in(pl.lit(value)))
+            self.table_select.df.filter(
+                pl.col(self.name + "__key").is_in(value if isinstance(value, list) else [value])
+            )
             .select(set([self.table_select.item_key, self.table_select.row_nr]))
             .collect()
             .to_dicts()
@@ -107,7 +109,7 @@ class FileInput(v.Flex):
                     data = pl.read_csv(bytes_data, try_parse_dates=True)
                 case "parquet":
                     data = pl.read_parquet(bytes_data)
-                case ("xlsx", "xls"):
+                case "xlsx" | "xls":
                     data = pl.read_excel(bytes_data)
                 case _:
                     raise Exception(f"Extension {extension} is not supported, ")
