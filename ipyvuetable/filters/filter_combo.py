@@ -6,6 +6,8 @@ from ipyvuetable.filters import Filter
 
 
 class FilterCombobox(Filter):
+    menu_size = "large"  # the menu contains a table
+
     def __init__(self, name, table, **kwargs):
         super().__init__(name, table, **kwargs)
 

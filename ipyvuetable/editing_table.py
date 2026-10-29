@@ -173,6 +173,7 @@ class EditingTable(Table):
                     item_key=f"{col}__key",
                     columns_to_hide=[f"{col}__key"],
                 )
+                self._watch_menu(widget.menu, "large")  # the menu contains a table
             elif col.lower().endswith("_file"):
                 widget = FileInput(name=col)
             else:
@@ -308,6 +309,7 @@ class EditingTable(Table):
                 menu.v_slots[0]["children"].color = "primary"
 
         menu.observe(_menu_change, "v_model")
+        self._watch_menu(menu, "small")
 
         return menu
 

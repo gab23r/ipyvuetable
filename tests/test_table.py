@@ -386,3 +386,34 @@ def test_slots_are_in_initial_state(monkeypatch, df, cls):
     table = getattr(ipyvuetable, cls)(df=df, title="t")
     slots = initial_slots[id(table)]
     assert [slot["name"] for slot in slots] == ["top", "body.prepend"]
+
+
+def test_dialog_is_attached_to_its_table(df):
+    # in VS Code, an overlay outside of the output area of the cell can not be clicked
+    table, other = Table(df=df), Table(df=df)
+    assert table.overlay_class in table._dom_classes
+    assert table.dialog.attach == f".{table.overlay_class} > .vuetify-styles > .v-application"
+    assert table.overlay_class != other.overlay_class
+    # the page-level scrim would be drawn over the attached dialog
+    assert table.dialog.hide_overlay is True
+
+
+def test_css_is_shipped_with_the_table(df):
+    from ipyvuetable.table import CSS
+
+    toolbar = next(
+        slot["children"] for slot in Table(df=df, actions_to_hide="*").v_slots if slot["name"] == "top"
+    )
+    styles = [w for w in toolbar.children if getattr(w, "tag", None) == "style"]
+    assert styles and styles[0].children == [CSS]
+    assert ".v-dialog__content" in CSS
+
+
+def test_import_displays_nothing():
+    import subprocess
+    import sys
+
+    out = subprocess.run(
+        [sys.executable, "-c", "import ipyvuetable"], capture_output=True, text=True, check=True
+    )
+    assert out.stdout == ""

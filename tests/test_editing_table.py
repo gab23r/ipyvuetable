@@ -261,3 +261,14 @@ def test_edit_after_filter(table):
     # filter is still applied after the df change
     assert [r["id"] for r in table.items] == [1, 4]
     assert rows(table)[4]["name"] == "Edited"
+
+
+def test_autocomplete_menu_in_dialog_makes_room(df):
+    repr_ = pl.LazyFrame({"cat": ["x", "y", "z"], "cat__repr": ["X!", "Y!", "Z!"]})
+    table = EditingTable(df=df, item_key="id", columns_repr={"cat": repr_})
+    table.actions["new"]["obj"].fire_event("click", None)
+    menu = table.dialog_widgets["cat"].menu
+    menu.v_model = True
+    assert "ipyvuetable--menu-large" in table.class_.split()
+    menu.v_model = False
+    assert "ipyvuetable--menu-large" not in (table.class_ or "").split()

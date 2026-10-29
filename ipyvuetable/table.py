@@ -1,6 +1,8 @@
 import base64
 import io
+import uuid
 from functools import reduce
+from pathlib import Path
 from typing import Any, Literal
 
 import ipyvuetify as v
@@ -22,6 +24,10 @@ from ipyvuetable.filters import (
     FilterListCombobox,
     FilterSlider,
 )
+
+# shipped with every table rather than displayed once at import: the output of the import cell can be
+# cleared, and the dialogs are not clickable in VS Code without these styles
+CSS = (Path(__file__).parent / "custom.css").read_text()
 
 
 class DataTableEnhanced(v.DataTable):
@@ -113,7 +119,15 @@ class Table(DataTableEnhanced):
             children=[self.unselect],
             dot=True,
         )  # count the number of selected items
-        self.dialog = v.Dialog(max_width="700px", v_model=False)
+        # overlays are attached to the table element rather than to the page (see custom.css): in VS Code,
+        # clicks outside the output area of a cell go to the notebook, not to the widget
+        self.overlay_class = f"ipyvuetable-{uuid.uuid4().hex[:12]}"
+        # the vuetify styles only apply within the v-application element
+        self.overlay_target = f".{self.overlay_class} > .vuetify-styles > .v-application"
+        # the page-level scrim of the overlay would cover the attached dialog: hide it
+        self.dialog = v.Dialog(
+            max_width="700px", v_model=False, attach=self.overlay_target, hide_overlay=True
+        )
         self.columns_to_display_search = v.TextField(
             v_model=None,
             label="Search ...",
@@ -132,6 +146,7 @@ class Table(DataTableEnhanced):
 
         self.filters: dict[str, Filter] = {}
         self.schema: dict[str, pl.DataType] = {}
+        self._open_menus: dict[int, Literal["small", "large"]] = {}  # see _watch_menu
         self.custom_actions = self._get_custom_actions()  # could be defined be subclasses
         self.payload = None  # the payload to be downloaded
         self.actions = self._get_actions()
@@ -146,6 +161,7 @@ class Table(DataTableEnhanced):
 
         self.style_ = kwargs.pop("style_", "white-space: nowrap")
         self.add_class("ipyvuetable")
+        self.add_class(self.overlay_class)
         self.v_model: list[dict[str, Any]] = []
 
         self.row_nr = "__row_nr__"
@@ -216,34 +232,35 @@ class Table(DataTableEnhanced):
             "tooltip": "Toggle multi sort",
         }
 
+        select_column_menu = v.Menu(
+            v_model=False,
+            close_on_content_click=False,
+            transition="scale-transition",
+            offset_y=True,
+            children=[
+                v.Card(
+                    children=[
+                        self.columns_to_display_search,
+                        self.columns_to_display_table,
+                    ]
+                )
+            ],
+            v_slots=[
+                {
+                    "name": "activator",
+                    "variable": "menus",
+                    "children": v.Icon(
+                        v_bind="menus.attrs",
+                        v_on="menus.on",
+                        children=["mdi-table-column-plus-after"],
+                        color="primary",
+                    ),
+                }
+            ],
+        )
+        self._watch_menu(select_column_menu, "small")
         actions["select_column"] = {
-            "obj": v.Menu(
-                v_model=False,
-                left=True,
-                close_on_content_click=False,
-                transition="scale-transition",
-                offset_y=True,
-                children=[
-                    v.Card(
-                        children=[
-                            self.columns_to_display_search,
-                            self.columns_to_display_table,
-                        ]
-                    )
-                ],
-                v_slots=[
-                    {
-                        "name": "activator",
-                        "variable": "menus",
-                        "children": v.Icon(
-                            v_bind="menus.attrs",
-                            v_on="menus.on",
-                            children=["mdi-table-column-plus-after"],
-                            color="primary",
-                        ),
-                    }
-                ],
-            ),
+            "obj": select_column_menu,
             "tooltip": "Select columns to hide/show",
         }
         actions["filter_on_selected"] = {
@@ -489,6 +506,27 @@ class Table(DataTableEnhanced):
 
         self.items = self.df_paginated.collect().to_dicts()
 
+    def _watch_menu(self, menu: v.Menu, size: Literal["small", "large"]) -> None:
+        """
+        Menus stay attached to the page, where vuetify positions them next to their activator. While one is
+        open, the table makes room for it (see custom.css) so that the menu stays within the output area of
+        the cell: in VS Code, clicks outside the output area go to the notebook, not to the widget.
+        """
+        menu.observe(lambda change: self._on_menu_toggled(menu, size, change["new"]), "v_model")
+
+    def _on_menu_toggled(self, menu: v.Menu, size: Literal["small", "large"], is_open: bool) -> None:
+        if is_open:
+            self._open_menus[id(menu)] = size
+        else:
+            self._open_menus.pop(id(menu), None)
+
+        classes = [c for c in (self.class_ or "").split() if not c.startswith("ipyvuetable--menu-")]
+        if self._open_menus:
+            classes.append(
+                f"ipyvuetable--menu-{'large' if 'large' in self._open_menus.values() else 'small'}"
+            )
+        self.class_ = " ".join(classes)
+
     def _get_slots(self) -> list[dict[str, Any]]:
         tooltip_actions = [
             utils.add_tooltip(action_d["obj"], action_d["tooltip"])
@@ -515,6 +553,7 @@ class Table(DataTableEnhanced):
                 *([v.Divider(vertical=True, class_="mx-5")] if tooltip_custom_actions else []),
                 *tooltip_custom_actions,
                 self.dialog,
+                v.Html(tag="style", children=[CSS]),  # type: ignore
             ],
         )
         if not self.toolbar_title.children and not tooltip_actions:

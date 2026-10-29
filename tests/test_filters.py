@@ -365,3 +365,44 @@ def test_null_selection_survives_df_change(df):
     assert ids(table) == [0, 4]
     table.df = df.with_columns(pl.col("id") + 10)
     assert ids(table) == [10, 14]
+
+
+# --- room for the menus in the output area (VS Code) ----------------------------------------------
+
+
+def menu_classes(table: Table) -> list[str]:
+    return [c for c in (table.class_ or "").split() if c.startswith("ipyvuetable--menu-")]
+
+
+@pytest.mark.parametrize(
+    ("col", "size"),
+    [("cat", "large"), ("tags", "large"), ("score", "small"), ("day", "small"), ("birthday", "small")],
+)
+def test_open_filter_menu_makes_room(df, col, size):
+    table = Table(df=df)
+    f = open_filter(table, col)
+    assert menu_classes(table) == [f"ipyvuetable--menu-{size}"]
+    close_filter(f)
+    assert menu_classes(table) == []
+
+
+def test_menu_room_keeps_user_classes_and_prefers_large(df):
+    table = Table(df=df, class_="my-class")
+    slider = open_filter(table, "score")
+    combo = open_filter(table, "cat")
+    assert table.class_.split() == ["my-class", "ipyvuetable--menu-large"]
+    close_filter(combo)
+    assert table.class_.split() == ["my-class", "ipyvuetable--menu-small"]
+    close_filter(slider)
+    assert table.class_.split() == ["my-class"]
+
+
+def test_column_menu_makes_room_and_opens_to_the_right(df):
+    table = Table(df=df)
+    menu = table.actions["select_column"]["obj"]
+    # opening to the left goes past the left edge of the output area
+    assert not menu.left
+    menu.v_model = True
+    assert menu_classes(table) == ["ipyvuetable--menu-small"]
+    menu.v_model = False
+    assert menu_classes(table) == []

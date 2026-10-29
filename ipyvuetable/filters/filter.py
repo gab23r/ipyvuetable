@@ -5,6 +5,8 @@ import ipyvuetable
 
 
 class Filter:
+    menu_size = "small"  # room needed by the menu in the output area, see Table._watch_menu
+
     def __init__(self, name, table):
         self.table: ipyvuetable.Table = table
         self.name: str = name
@@ -26,6 +28,7 @@ class Filter:
         )
 
         self.menu.observe(self._update_selection, "v_model")
+        self.table._watch_menu(self.menu, self.menu_size)
 
     def _update_mask(self): ...
 

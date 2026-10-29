@@ -32,3 +32,37 @@
     padding-top: 0px;
     margin-top: 0px;
  }
+
+/* Dialogs are attached to the v-application element of their table (see Table.__init__) and stacked
+ * over the table in the same grid cell instead of being fixed to the page, so that they stay within the
+ * output area of the cell and the output grows if the dialog is taller than the table.
+ * In VS Code, clicks outside the output area of a cell go to the notebook, not to the widget. */
+.ipyvuetable > .vuetify-styles > .v-application {
+    display: grid;
+}
+.ipyvuetable > .vuetify-styles > .v-application > * {
+    grid-area: 1 / 1;
+    min-width: 0;
+}
+.ipyvuetable > .vuetify-styles > .v-application > .v-dialog__content {
+    position: relative;
+    height: auto;
+    align-self: start;
+}
+.ipyvuetable > .vuetify-styles > .v-application > .v-dialog__content > .v-dialog {
+    max-height: none;
+}
+
+/* Menus (filters, column selection, ...) stay attached to the page, where vuetify positions them next to
+ * their activator. While one is open, the table makes room for it (see Table._watch_menu) so that the menu
+ * stays within the output area of the cell. */
+.v-data-table.ipyvuetable--menu-small {
+    min-height: 320px;
+}
+.v-data-table.ipyvuetable--menu-large {
+    min-height: 350px;
+}
+/* the rows per page menu of the footer opens below the table */
+.ipyvuetable > .vuetify-styles > .v-application .v-data-table:has(> .v-data-footer [aria-expanded="true"]) {
+    padding-bottom: 320px;
+}
